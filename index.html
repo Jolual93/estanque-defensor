@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>El Estanque Defensor - Continuo, Aleatorio y Jefes</title>
+    <title>El Estanque Defensor - Mazo Estratégico</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -107,7 +107,7 @@
             pointer-events: none; text-shadow: 0 0 2px black;
         }
 
-        /* --- Barras de Vida (NUEVO) --- */
+        /* --- Barras de Vida --- */
         .hp-bar-container {
             position: absolute; bottom: -8px; width: 120%; height: 5px;
             background: rgba(255, 0, 0, 0.4); border-radius: 3px; overflow: hidden;
@@ -115,7 +115,7 @@
         }
         .hp-bar { height: 100%; background: #4caf50; width: 100%; transition: width 0.1s linear; }
         .blocker .hp-bar-container { background: rgba(0, 0, 0, 0.5); }
-        .blocker .hp-bar { background: #64b5f6; } /* Color azul para aliados */
+        .blocker .hp-bar { background: #64b5f6; } 
 
         /* Enemigos y Muros del Oso */
         .enemy { font-size: clamp(16px, 5vw, 26px); z-index: 60; filter: drop-shadow(0 2px 4px black); transition: filter 0.2s, top 0.2s; }
@@ -144,30 +144,51 @@
         }
         @keyframes floatUp { 0% { opacity: 1; margin-top: 0; } 100% { opacity: 0; margin-top: -30px; } }
 
-        /* Pantalla Inicio */
+        /* Pantalla Inicio y Sistema de Mazo */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a2e; /* Fondo sólido oscuro para arreglar superposición */
+            background: #1a1a2e; 
             display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 2000; text-align: center; padding: 20px;
         }
+
+        .deck-grid {
+            display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; max-width: 400px;
+        }
+
+        .deck-card {
+            width: 70px; height: 70px; background: rgba(255,255,255,0.1); border-radius: 15px; 
+            display: flex; align-items: center; justify-content: center; font-size: 40px; 
+            cursor: pointer; border: 3px solid transparent; transition: 0.2s; position: relative;
+        }
+
+        .deck-card:hover { background: rgba(255,255,255,0.2); }
+        .deck-card.selected { border-color: #81c784; background: rgba(129, 199, 132, 0.2); transform: scale(1.05); }
+        .deck-card.selected::after {
+            content: '✅'; position: absolute; top: -5px; right: -5px; font-size: 16px;
+        }
+
+        #deck-status { color: #ffd54f; font-weight: bold; margin-bottom: 20px; font-size: 1.1rem; }
+        
+        #btn-start-game:disabled { background: #555; color: #999; cursor: not-allowed; }
+
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <h1 style="color: #81c784; font-size: 2.5rem; margin-bottom: 5px;">El Estanque Continuo</h1>
-        <p style="color: #b2ebf2; font-size: 1rem; max-width: 400px; margin-bottom: 20px;">
-            ¡Sobrevive y fusiona unidades!<br>
-            <i>¡Cuidado! Cada 10 oleadas aparece un Jefe Final 👹.</i><br><br>
-            <b>🌳 Árbol:</b> Genera energía (Agua).<br>
-            <b>🦉 Búho:</b> Disparo rápido de gran alcance.<br>
-            <b>🐸 Rana:</b> Ralentiza enemigos.<br>
-            <b>🐻 Oso:</b> Invoca guardianes vivos.<br>
-            <b>🐿️ Ardilla:</b> Lanza bellotas explosivas en área.<br>
-            <br><i style="color: #ffd54f;">Usa el Modo Auto para que el juego acomode tus defensas.</i>
+        <h1 style="color: #81c784; font-size: 2.2rem; margin-bottom: 5px;">El Estanque Continuo</h1>
+        <p style="color: #b2ebf2; font-size: 0.95rem; max-width: 400px; margin-bottom: 15px;">
+            Arma tu equipo. <b>Elige solo 4 guardianes</b> para esta partida.
         </p>
-        <button class="btn btn-summon" style="font-size: 1.2rem; margin-top: 10px;" onclick="startGame()">Comenzar</button>
+        
+        <!-- Sistema de Mazo (Deck Builder) -->
+        <div class="deck-grid" id="deck-grid">
+            <!-- Rellenado por JavaScript -->
+        </div>
+        <div id="deck-status">0 / 4 Seleccionados</div>
+
+        <button id="btn-start-game" class="btn btn-summon" style="font-size: 1.2rem; padding: 15px 40px;" disabled onclick="startGame()">Comenzar</button>
     </div>
 
     <div id="top-ui">
@@ -181,7 +202,7 @@
             <button id="pause-btn" class="btn btn-pause" onclick="togglePause()">⏸️ Pausa</button>
             <button id="auto-btn" class="btn btn-auto" onclick="toggleAuto()">🤖 Auto: OFF</button>
             <button id="music-btn" class="btn btn-music" onclick="toggleMusic()">🎵 Música: OFF</button>
-            <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none; grid-column: span 2;" onclick="restartGame()">Reiniciar Partida</button>
+            <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none; grid-column: span 2;" onclick="showStartScreen()">Cambiar Mazo y Reiniciar</button>
         </div>
     </div>
 
@@ -195,7 +216,7 @@
     <div id="game-area">
         <div id="range-indicator"></div>
         <div id="bridge-container"><div id="grid"></div></div>
-        <div id="pond-zone">🌸 Estanque Sagrado 🌸</div> <!-- Cambié el emoji a uno universal -->
+        <div id="pond-zone">🌸 Estanque Sagrado 🌸</div>
     </div>
 
     <!-- Reproductor de Audio Oculto -->
@@ -218,26 +239,19 @@
         const musicBtn = document.getElementById('music-btn');
         const bgMusic = document.getElementById('bg-music');
 
-        // --- SISTEMA DE MÚSICA LOCAL CORREGIDO ---
+        // --- SISTEMA DE MÚSICA ---
         let isMusicEnabled = false; 
 
-        // ⚠️ IMPORTANTE: Si un archivo no suena, revisa en tu PC que no se llame "Bosque Lofi.mp3.mp3" por accidente.
         const musicPlaylist = [
-            'Bosque Lofi (1).mp3', 
-            'Bosque Lofi.mp3', 
-            'Cielo Nocturno (1).mp3', 
-            'Cielo Nocturno.mp3', 
-            'Jardín Acuático (1).mp3', 
-            'Jardín Acuático.mp3', 
-            'Tarde de Osos.mp3', 
-            'Tarde de Osos (1).mp3'
+            'Bosque Lofi (1).mp3', 'Bosque Lofi.mp3', 
+            'Cielo Nocturno (1).mp3', 'Cielo Nocturno.mp3', 
+            'Jardín Acuático (1).mp3', 'Jardín Acuático.mp3', 
+            'Tarde de Osos.mp3', 'Tarde de Osos (1).mp3'
         ];
 
         function playRandomMusic() {
             if (musicPlaylist.length === 0 || !isMusicEnabled) return;
             const randomIndex = Math.floor(Math.random() * musicPlaylist.length);
-            
-            // Asignación directa, sin encodeURI, soluciona el error en archivos locales de Windows
             const trackFile = musicPlaylist[randomIndex]; 
             
             bgMusic.src = trackFile;
@@ -270,7 +284,7 @@
         }
         bgMusic.addEventListener('ended', playRandomMusic);
 
-        // --- SISTEMA PRINCIPAL ---
+        // --- SISTEMA PRINCIPAL Y DE MAZO ---
         const COLS = 10;
         const ROWS = 10;
         let cellW = 0, cellH = 0, gridTop = 0;
@@ -283,7 +297,8 @@
             spawnTimer: 0, lastFrame: performance.now()
         };
 
-        const UNIT_DATA = {
+        // BASE DE DATOS DE TODAS LAS UNIDADES (Ahora son 6)
+        const ALL_UNITS = {
             tree: { emoji: '🌳', type: 'tree', cooldown: 12.0, role: 'econ', rangeCells: 0, dmg: 0, speed: 0, proj: '',
                     name: 'Árbol Sagrado', desc: 'Genera gotas de agua muy lentamente.', lvl3: 'Nivel 3: Genera 4 gotas por ciclo.' },
             owl:  { emoji: '🦉', type: 'owl',  cooldown: 0.9, role: 'dps', dmg: 10, proj: '✨', speed: 450, rangeCells: 5.5,
@@ -291,37 +306,102 @@
             frog: { emoji: '🐸', type: 'frog', cooldown: 1.5, role: 'slow', dmg: 5, proj: '💧', speed: 350, rangeCells: 3.85,
                     name: 'Rana Guardiana', desc: 'Sus gotas ralentizan a las sombras.', lvl3: 'Nivel 3: Congela y ralentiza en área.' },
             bear: { emoji: '🐻', type: 'bear', cooldown: 5.0, role: 'summoner', dmg: 10, proj: '', speed: 0, rangeCells: 0,
-                    name: 'Oso Protector', desc: 'Invoca guardianes vivos que avanzan y pelean.', lvl3: 'Nivel 3: Invoca Ancestros con espinas.' },
+                    name: 'Oso Protector', desc: 'Invoca guardianes vivos que rastrean y pelean.', lvl3: 'Nivel 3: Invoca Ancestros con espinas.' },
             squirrel: { emoji: '🐿️', type: 'squirrel', cooldown: 2.0, role: 'splash', dmg: 8, proj: '🌰', speed: 320, rangeCells: 4.5,
-                    name: 'Ardilla Bombardera', desc: 'Lanza bellotas que explotan y dañan en área.', lvl3: 'Nivel 3: Explosión gigante que empuja a los enemigos.' }
+                    name: 'Ardilla Bombardera', desc: 'Lanza bellotas que explotan en área.', lvl3: 'Nivel 3: Explosión gigante que empuja enemigos.' },
+            turtle: { emoji: '🐢', type: 'turtle', cooldown: 3.5, role: 'heavy', dmg: 35, proj: '🌊', speed: 200, rangeCells: 6.0,
+                    name: 'Tortuga Cañón', desc: 'Lenta, pero dispara potentes olas de agua.', lvl3: 'Nivel 3: Olas gigantes que hacen daño de salpicadura.' }
         };
 
+        let selectedDeck = []; // Guardará las 4 claves elegidas
         let units = [];
         let blockers = [];
         let enemies = [];
         let projectiles = [];
         let audioCtx;
 
+        // Iniciar la UI del creador de mazos
+        function initDeckBuilder() {
+            const container = document.getElementById('deck-grid');
+            container.innerHTML = '';
+            selectedDeck = [];
+            
+            Object.keys(ALL_UNITS).forEach(key => {
+                const data = ALL_UNITS[key];
+                const card = document.createElement('div');
+                card.className = 'deck-card';
+                card.innerText = data.emoji;
+                card.title = `${data.name}\n${data.desc}`;
+                
+                card.onclick = () => {
+                    if (card.classList.contains('selected')) {
+                        card.classList.remove('selected');
+                        selectedDeck = selectedDeck.filter(k => k !== key);
+                    } else {
+                        if (selectedDeck.length < 4) {
+                            card.classList.add('selected');
+                            selectedDeck.push(key);
+                        }
+                    }
+                    updateDeckStatus();
+                };
+                container.appendChild(card);
+            });
+            updateDeckStatus();
+        }
+
+        function updateDeckStatus() {
+            document.getElementById('deck-status').innerText = `${selectedDeck.length} / 4 Seleccionados`;
+            document.getElementById('btn-start-game').disabled = selectedDeck.length !== 4;
+        }
+
+        // Llamar a la función al cargar la página
+        window.onload = initDeckBuilder;
+
+        function showStartScreen() {
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('restart-btn').style.display = 'none';
+            state.isRunning = false;
+        }
+
         function startGame() {
             try {
+                if (selectedDeck.length !== 4) return;
+
                 document.getElementById('start-screen').style.display = 'none';
                 
                 try {
                     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                     if (AudioContextClass && !audioCtx) audioCtx = new AudioContextClass();
-                } catch (e) { console.warn("Audio de efectos desactivado por el navegador."); }
+                } catch (e) { console.warn("Audio desactivado."); }
+
+                // Limpiar todo por si viene de un reinicio
+                units.forEach(u => u.el.remove()); blockers.forEach(b => b.el.remove());
+                enemies.forEach(e => e.el.remove()); projectiles.forEach(p => p.el.remove());
+                units = []; blockers = []; enemies = []; projectiles = [];
+
+                state = {
+                    energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10,
+                    isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
+                    timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
+                    spawnTimer: 0, lastFrame: performance.now()
+                };
+
+                autoBtn.innerText = "🤖 Auto: OFF";
+                autoBtn.style.background = "#ffb74d";
+                gameArea.style.background = 'linear-gradient(to bottom, #1f1f3a 0%, #121220 100%)';
 
                 initGrid();
                 drawLanes();
                 updateGridVisuals();
-                
-                state.isRunning = true;
-                state.lastFrame = performance.now();
                 updateUI();
+                
+                pauseBtn.style.display = 'block'; pauseBtn.innerText = "⏸️ Pausa";
+                document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)';
+
                 requestAnimationFrame(gameLoop);
             } catch (err) {
-                console.error("Error crítico al iniciar:", err);
-                document.getElementById('start-screen').style.display = 'none';
+                console.error("Error al iniciar:", err);
             }
         }
 
@@ -346,6 +426,7 @@
         }
 
         function drawLanes() {
+            document.querySelectorAll('.lane-divider').forEach(e => e.remove()); // Limpiar previas
             for(let i=1; i<COLS; i++) {
                 const divider = document.createElement('div');
                 divider.className = 'lane-divider';
@@ -367,7 +448,7 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.45 - 80;
+            gridTop = gameRect.height * 0.45 - 90;
             bridgeContainer.style.height = '55%';
             cellW = gameRect.width / COLS;
             cellH = bridgeContainer.clientHeight / ROWS;
@@ -432,8 +513,10 @@
             if(emptyCells.length === 0) { spawnText(gameArea.clientWidth/2, 100, "¡Sin espacio!", "#ff5252"); return; }
             
             state.energy -= state.summonCost;
-            const keys = Object.keys(UNIT_DATA);
-            const data = UNIT_DATA[keys[Math.floor(Math.random() * keys.length)]];
+            
+            // SACAR UNA UNIDAD ALEATORIA DEL MAZO (DECK)
+            const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
+            const data = ALL_UNITS[randomKey];
 
             const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
             createUnit(data, 1, randomCell.col, randomCell.row);
@@ -517,11 +600,11 @@
                     const targetUnit = getUnitAt(newCol, newRow);
                     if(targetUnit && targetUnit !== unit) {
                         if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 3) {
-                            // FUSIÓN ALEATORIA
+                            
+                            // FUSIÓN USANDO EL DECK
                             targetUnit.level++;
-                            const keys = Object.keys(UNIT_DATA);
-                            const randomType = keys[Math.floor(Math.random() * keys.length)];
-                            const newData = UNIT_DATA[randomType];
+                            const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
+                            const newData = ALL_UNITS[randomKey];
                             
                             targetUnit.baseData = newData;
                             targetUnit.emojiSpan.textContent = newData.emoji;
@@ -538,7 +621,7 @@
                             state.unlockedCount = Math.min(100, state.unlockedCount + 1);
                             updateGridVisuals();
                         } else {
-                            // INTERCAMBIO SEGURO
+                            // INTERCAMBIO
                             const oldCol = unit.col; const oldRow = unit.row;
                             unit.col = newCol; unit.row = newRow;
                             targetUnit.col = oldCol; targetUnit.row = oldRow;
@@ -574,30 +657,6 @@
             }
         }
 
-        function restartGame() {
-            units.forEach(u => u.el.remove()); blockers.forEach(b => b.el.remove());
-            enemies.forEach(e => e.el.remove()); projectiles.forEach(p => p.el.remove());
-
-            units = []; blockers = []; enemies = []; projectiles = [];
-
-            state = {
-                energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10,
-                isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
-                timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
-                spawnTimer: 0, lastFrame: performance.now()
-            };
-
-            autoBtn.innerText = "🤖 Auto: OFF";
-            autoBtn.style.background = "#ffb74d";
-            gameArea.style.background = 'linear-gradient(to bottom, #1f1f3a 0%, #121220 100%)';
-
-            updateGridVisuals();
-            updateUI();
-            pauseBtn.style.display = 'block'; pauseBtn.innerText = "⏸️ Pausa";
-            document.getElementById('restart-btn').style.display = 'none';
-            document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)';
-        }
-
         function createHealthBar(entityEl) {
             const hpContainer = document.createElement('div');
             hpContainer.className = 'hp-bar-container';
@@ -612,11 +671,9 @@
             const lane = Math.floor(Math.random() * COLS);
             const el = document.createElement('div');
             el.className = 'entity enemy'; 
-            
             const emojiSpan = document.createElement('span');
             emojiSpan.innerText = '🌑';
             el.appendChild(emojiSpan);
-            
             const hpBar = createHealthBar(el);
 
             const x = lane * cellW + cellW / 2; const y = -20;
@@ -634,11 +691,9 @@
             const lane = Math.floor(COLS / 2); 
             const el = document.createElement('div');
             el.className = 'entity enemy boss';
-            
             const emojiSpan = document.createElement('span');
             emojiSpan.innerText = '👹';
             el.appendChild(emojiSpan);
-            
             const hpBar = createHealthBar(el);
 
             const x = lane * cellW + cellW / 2; const y = -40;
@@ -666,7 +721,7 @@
             const dt = (currentTime - state.lastFrame) / 1000;
             state.lastFrame = currentTime;
 
-            // 1. Progresión Continua y Oleadas
+            // 1. Progresión Continua
             state.timeElapsed += dt;
             const newWave = 1 + Math.floor(state.timeElapsed / 15); 
             if (newWave > state.wave) {
@@ -676,7 +731,6 @@
                 spawnText(gameArea.clientWidth/2, 100, `¡Oleada ${state.wave}!`, "#ce93d8");
             }
 
-            // Spawner
             state.spawnTimer -= dt;
             if (state.spawnTimer <= 0) {
                 if (state.wave % 10 === 0 && !state.bossSpawnedForWave) {
@@ -701,8 +755,8 @@
                             let u1 = units[i]; let u2 = units[j];
                             if (u1.baseData.type === u2.baseData.type && u1.level === u2.level && u1.level < 3) {
                                 u1.level++;
-                                const keys = Object.keys(UNIT_DATA);
-                                const newData = UNIT_DATA[keys[Math.floor(Math.random() * keys.length)]];
+                                const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
+                                const newData = ALL_UNITS[randomKey];
                                 
                                 u1.baseData = newData; u1.emojiSpan.textContent = newData.emoji;
                                 u1.el.dataset.level = u1.level; u1.lvlInd.innerText = '⭐'.repeat(u1.level);
@@ -722,7 +776,7 @@
                     }
 
                     if (!merged && units.length > 1) {
-                        const roleScore = { 'summoner': 1, 'slow': 2, 'splash': 2.5, 'dps': 3, 'econ': 4 };
+                        const roleScore = { 'summoner': 1, 'slow': 2, 'splash': 2.5, 'dps': 3, 'heavy': 3.5, 'econ': 4 };
                         let sortedUnits = [...units].sort((a, b) => roleScore[a.baseData.role] - roleScore[b.baseData.role]);
                         
                         let occupiedCells = units.map(u => ({col: u.col, row: u.row}));
@@ -756,7 +810,8 @@
                         const emoji = u.level === 3 ? '🐻‍❄️' : '🐾';
                         createBlocker(u.col, u.y - 40, hp, dmg, emoji, u.level === 3);
                     }
-                    else if (data.role === 'dps' || data.role === 'slow' || data.role === 'splash') {
+                    else {
+                        // Atacantes: Búho, Rana, Ardilla, Tortuga
                         const rangePx = data.rangeCells * cellW;
                         let target = null;
                         let minDist = rangePx;
@@ -797,7 +852,23 @@
                             else { p.el.remove(); projectiles.splice(i, 1); continue; }
                         }
                     } 
+                    else if (p.role === 'heavy') {
+                        // LA TORTUGA
+                        hitEnemy.hp -= p.dmg; playChime('hit'); 
+                        hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #4caf50)';
+                        setTimeout(() => { if(hitEnemy.el) hitEnemy.el.style.filter = hitEnemy.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
+                        
+                        if (p.level === 3) {
+                            enemies.forEach(nearby => {
+                                if(Math.hypot(nearby.x - hitEnemy.x, nearby.y - hitEnemy.y) < cellW * 1.5) {
+                                    nearby.hp -= p.dmg * 0.5; // Splash damage
+                                }
+                            });
+                        }
+                        p.el.remove(); projectiles.splice(i, 1); continue;
+                    }
                     else if (p.role === 'splash') {
+                        // LA ARDILLA
                         playChime('hit');
                         let splashRadius = p.level === 3 ? cellW * 2.5 : cellW * 1.5;
                         
@@ -835,12 +906,10 @@
                 }
             }
 
-            // 4. Guardianes del Oso (Móviles con Vida Visible)
+            // 4. Guardianes del Oso (Rastreo arreglado)
             for (let i = blockers.length - 1; i >= 0; i--) {
                 const b = blockers[i];
-                b.hp -= 3 * dt; // Se desgastan poco a poco
-                
-                // Actualizar barra de vida visual
+                b.hp -= 3 * dt; 
                 if (b.hpBar) b.hpBar.style.width = `${Math.max(0, (b.hp / b.maxHp) * 100)}%`;
                 
                 let engagedEnemy = enemies.find(e => Math.hypot(e.x - b.x, e.y - b.y) < (e.isBoss ? 50 : 35));
@@ -852,6 +921,20 @@
                         playChime('hit'); spawnText(engagedEnemy.x, engagedEnemy.y, "💢", "#ffb74d");
                         b.attackTimer = 1.0;
                     }
+                } else if (enemies.length > 0) {
+                    // RASTREO: Buscar enemigo más cercano
+                    let closest = null; let minDist = Infinity;
+                    for (let e of enemies) {
+                        let d = Math.hypot(e.x - b.x, e.y - b.y);
+                        if (d < minDist) { minDist = d; closest = e; }
+                    }
+                    if (closest) {
+                        const angle = Math.atan2(closest.y - b.y, closest.x - b.x);
+                        b.x += Math.cos(angle) * b.speed * dt;
+                        b.y += Math.sin(angle) * b.speed * dt;
+                        b.el.style.left = `${b.x}px`;
+                        b.el.style.top = `${b.y}px`;
+                    }
                 } else {
                     b.y -= b.speed * dt; b.el.style.top = `${b.y}px`;
                 }
@@ -861,13 +944,12 @@
                 }
             }
 
-            // 5. Enemigos bajando (Con Vida Visible)
+            // 5. Enemigos bajando
             let bossAlive = false;
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const e = enemies[i];
                 if (e.isBoss) bossAlive = true;
 
-                // Actualizar barra de vida visual
                 if (e.hpBar) e.hpBar.style.width = `${Math.max(0, (e.hp / e.maxHp) * 100)}%`;
 
                 if (e.slowTimer > 0) { 
@@ -905,7 +987,6 @@
                 }
             }
 
-            // Restaurar cielo si el jefe muere
             if (state.wave >= 10 && !bossAlive) {
                 gameArea.style.background = 'linear-gradient(to bottom, #1f1f3a 0%, #121220 100%)';
             }
@@ -913,17 +994,15 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // --- FUNCIONES PROTEGIDAS Y DEFINIDAS ---
         fireProjectile = function(unit, target) {
             if (!unit || !unit.baseData || !unit.el) return;
             const el = document.createElement('div');
             el.className = 'entity projectile'; el.innerText = unit.baseData.proj;
             el.style.left = `${unit.x}px`; el.style.top = `${unit.y}px`;
             
-            let isPiercing = (unit.baseData.type === 'owl' && unit.level === 3);
-            if(isPiercing) { el.style.filter = 'drop-shadow(0 0 5px yellow)'; el.style.fontSize = '25px'; }
-            
+            if(unit.baseData.type === 'owl' && unit.level === 3) { el.style.filter = 'drop-shadow(0 0 5px yellow)'; el.style.fontSize = '25px'; }
             if(unit.baseData.role === 'splash') { el.style.fontSize = unit.level === 3 ? '25px' : '18px'; }
+            if(unit.baseData.role === 'heavy') { el.style.fontSize = unit.level === 3 ? '40px' : '30px'; } // Tortuga
 
             gameArea.appendChild(el);
 
@@ -932,7 +1011,7 @@
                 el: el, x: unit.x, y: unit.y, role: unit.baseData.role,
                 dmg: unit.baseData.dmg * (unit.level === 3 ? 2.5 : 1), 
                 speed: unit.baseData.speed, level: unit.level, 
-                isPiercing: isPiercing, target: target, angle: angle, hitIds: new Set()
+                isPiercing: (unit.baseData.type === 'owl' && unit.level === 3), target: target, angle: angle, hitIds: new Set()
             });
             
             unit.el.style.transform = 'translate(-50%, -50%) scale(0.9)';
@@ -942,11 +1021,9 @@
         createBlocker = function(col, y, hp, dmg, emoji, isAncestral) {
             const el = document.createElement('div');
             el.className = 'entity blocker'; 
-            
             const emojiSpan = document.createElement('span');
             emojiSpan.innerText = emoji;
             el.appendChild(emojiSpan);
-
             const hpBar = createHealthBar(el);
 
             const x = col * cellW + cellW / 2;
