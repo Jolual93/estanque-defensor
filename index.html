@@ -207,6 +207,9 @@
         const bgMusic = document.getElementById('bg-music');
 
         // --- SISTEMA DE MÚSICA ALEATORIA ---
+        // ⚠️ IMPORTANTE: Cuando subas el juego a GitHub/Vercel con tus MP3, 
+        // borra la lista de prueba de abajo y usa esta (quitando los símbolos /* y */):
+        /*
         const musicPlaylist = [
             'Bosque Lofi (1).mp3', 
             'Bosque Lofi.mp3', 
@@ -217,6 +220,13 @@
             'Tarde de Osos.mp3', 
             'Tarde de Osos (1).mp3'
         ];
+        */
+
+        // Canciones lo-fi públicas de prueba para que puedas escuchar el reproductor AHORA:
+        const musicPlaylist = [
+            'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3', 
+            'https://cdn.pixabay.com/download/audio/2022/04/27/audio_3086eb29db.mp3'
+        ];
 
         function playRandomMusic() {
             if (musicPlaylist.length === 0) return;
@@ -225,7 +235,8 @@
             
             bgMusic.src = trackFile;
             bgMusic.play().then(() => {
-                let trackName = trackFile.replace('.mp3', '').replace(' (1)', '');
+                // Formatear el nombre (Si es un enlace de prueba, muestra "Pista", si es tuyo, muestra el nombre real)
+                let trackName = trackFile.includes('http') ? `Pista ${randomIndex + 1}` : trackFile.replace('.mp3', '').replace(' (1)', '');
                 musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
