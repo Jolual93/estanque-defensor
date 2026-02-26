@@ -3,15 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>El Estanque Defensor - Rankings y Mazo</title>
+    <title>El Estanque Defensor - Mazo Estratégico y Nivel 4</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
         
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121220;
+            background-color: #050508; /* Fondo oscuro para los bordes en PC */
             color: white; overflow: hidden;
+            display: flex; justify-content: center; /* Centrar en PC */
+        }
+
+        /* --- Área de Juego Principal (Forzado a formato vertical móvil) --- */
+        #game-area {
+            width: 100%; 
+            max-width: min(100%, 60vh); /* Esto evita que se aplaste en PC y lo mantiene vertical */
+            height: 100%; 
+            position: relative; overflow: hidden;
+            background: linear-gradient(to bottom, #1f1f3a 0%, #121220 100%);
+            transition: background 1s ease;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
             display: flex; flex-direction: column;
         }
 
@@ -19,12 +31,13 @@
         #top-ui {
             padding: 15px; display: flex; justify-content: space-between; align-items: flex-start;
             background: rgba(0, 0, 0, 0.8); z-index: 100; border-bottom: 2px solid #333;
+            width: 100%;
         }
 
         .stats h2 { margin: 0; font-size: 1.2rem; color: #ffeb3b; }
         .stats p { margin: 5px 0 0 0; font-size: 1rem; color: #b2ebf2; }
 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 50%; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 55%; }
 
         .btn {
             padding: 8px 10px; font-size: 0.85rem; border: none; border-radius: 20px;
@@ -40,7 +53,7 @@
 
         /* --- Panel de Información (Tooltip) --- */
         #info-panel {
-            position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 130px; left: 50%; transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9); border: 1px solid #ffeb3b; border-radius: 10px;
             padding: 10px 20px; text-align: center; z-index: 1000; width: 90%; max-width: 400px;
             opacity: 0; pointer-events: none; transition: opacity 0.2s;
@@ -50,41 +63,34 @@
         #info-panel p { margin: 0; font-size: 0.9rem; color: #e0e0e0; line-height: 1.4; }
         #info-panel .lvl4-desc { color: #ffeb3b; font-weight: bold; margin-top: 5px; font-size: 0.85rem; text-shadow: 0 0 5px rgba(255, 235, 59, 0.5); }
 
-        /* --- Área de Juego Principal --- */
-        #game-area {
-            flex-grow: 1; position: relative; width: 100%; max-width: 600px;
-            margin: 0 auto; overflow: hidden;
-            background: linear-gradient(to bottom, #1f1f3a 0%, #121220 100%);
-            transition: background 1s ease;
-        }
-
         .lane-divider {
             position: absolute; top: 0; bottom: 0; width: 1px;
             background: rgba(255,255,255,0.03); pointer-events: none;
         }
 
-        /* --- El Puente 10x20 --- */
+        /* --- El Puente 10x15 --- */
         #bridge-container {
-            position: absolute; bottom: 80px; left: 0; width: 100%; height: 65%; /* Ahora es más alto */
+            position: absolute; bottom: 80px; left: 0; width: 100%; 
+            height: 60%; /* Toma un buen espacio, pero deja margen para los enemigos */
             pointer-events: none;
         }
 
         #grid {
-            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(20, 1fr); /* 20 Filas */
+            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(15, 1fr); /* 15 Filas */
             width: 100%; height: 100%; pointer-events: auto;
         }
 
         .grid-cell {
-            border: 1px solid rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
             background: transparent;
             transition: background 0.4s, border 0.4s;
             pointer-events: none;
         }
 
         .grid-cell.unlocked {
-            border: 1px dashed rgba(129, 199, 132, 0.4);
-            background: rgba(50, 50, 75, 0.7);
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            border: 1px dashed rgba(129, 199, 132, 0.3);
+            background: rgba(50, 50, 75, 0.5);
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
         }
 
         /* Estanque (Base a defender) */
@@ -99,18 +105,18 @@
         /* --- Entidades --- */
         .entity { position: absolute; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; flex-direction: column; }
         
-        .unit { font-size: clamp(16px, 5vw, 28px); cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
+        .unit { font-size: clamp(14px, 4vw, 24px); cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
         .unit:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 100; transition: none; }
 
         .level-indicator {
-            position: absolute; bottom: -12px; display: flex; gap: 1px; font-size: 10px;
-            pointer-events: none; text-shadow: 0 0 2px black; letter-spacing: -2px;
+            position: absolute; bottom: -10px; display: flex; gap: 1px; font-size: 8px;
+            pointer-events: none; text-shadow: 0 0 2px black; letter-spacing: -1px;
         }
 
         /* --- Barras de Vida --- */
         .hp-bar-container {
-            position: absolute; bottom: -8px; width: 120%; height: 5px;
-            background: rgba(255, 0, 0, 0.4); border-radius: 3px; overflow: hidden;
+            position: absolute; bottom: -6px; width: 120%; height: 4px;
+            background: rgba(255, 0, 0, 0.4); border-radius: 2px; overflow: hidden;
             pointer-events: none;
         }
         .hp-bar { height: 100%; background: #4caf50; width: 100%; transition: width 0.1s linear; }
@@ -120,7 +126,7 @@
         /* Enemigos y Muros del Oso */
         .enemy { font-size: clamp(16px, 5vw, 26px); z-index: 60; filter: drop-shadow(0 2px 4px black); transition: filter 0.2s, top 0.2s; }
         .enemy.boss { font-size: clamp(40px, 12vw, 60px); filter: drop-shadow(0 0 15px #ff1744); z-index: 65; }
-        .enemy.boss .hp-bar-container { bottom: -15px; height: 8px; }
+        .enemy.boss .hp-bar-container { bottom: -12px; height: 6px; }
         
         .blocker { font-size: clamp(14px, 4vw, 24px); z-index: 40; filter: drop-shadow(0 0 8px rgba(129, 199, 132, 0.8)); transition: opacity 0.2s; }
         
@@ -162,15 +168,15 @@
         }
 
         .deck-card {
-            width: 70px; height: 70px; background: rgba(255,255,255,0.1); border-radius: 15px; 
-            display: flex; align-items: center; justify-content: center; font-size: 40px; 
+            width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 12px; 
+            display: flex; align-items: center; justify-content: center; font-size: 35px; 
             cursor: pointer; border: 3px solid transparent; transition: 0.2s; position: relative;
         }
 
         .deck-card:hover { background: rgba(255,255,255,0.2); }
         .deck-card.selected { border-color: #81c784; background: rgba(129, 199, 132, 0.2); transform: scale(1.05); }
         .deck-card.selected::after {
-            content: '✅'; position: absolute; top: -5px; right: -5px; font-size: 16px;
+            content: '✅'; position: absolute; top: -5px; right: -5px; font-size: 14px;
         }
 
         /* Visualizador de Habilidades en Start Screen */
@@ -230,19 +236,17 @@
 </head>
 <body>
 
+<div id="game-area">
     <div id="start-screen">
-        <h1 style="color: #81c784; font-size: 2.2rem; margin-bottom: 5px;">El Estanque Continuo</h1>
+        <h1 style="color: #81c784; font-size: 2.2rem; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">El Estanque Continuo</h1>
         <p style="color: #b2ebf2; font-size: 0.95rem; max-width: 400px; margin-bottom: 15px;">
             Elige tus <b>4 guardianes</b> favoritos para esta partida.
         </p>
 
-        <!-- Input de Jugador para Ranking -->
         <input type="text" id="player-name" class="player-input" placeholder="Tu nombre o apodo..." maxlength="15" />
         
-        <!-- Sistema de Mazo (Deck Builder) -->
         <div class="deck-grid" id="deck-grid"></div>
 
-        <!-- Cajita Descriptiva para explicar habilidades -->
         <div id="deck-preview-box">
             <em style="color: #b2ebf2; font-size: 0.9rem;">Toca un guardián para ver sus habilidades.</em>
         </div>
@@ -262,17 +266,15 @@
             <div class="admin-lock" onclick="toggleAdminPanel()" title="Panel de Administrador">🔒</div>
         </div>
         
-        <!-- Pestañas de Tiempo -->
         <div class="filter-tabs">
             <button class="filter-btn active" id="tab-daily" onclick="filterLeaderboard('daily')">Hoy</button>
             <button class="filter-btn" id="tab-weekly" onclick="filterLeaderboard('weekly')">Semana</button>
             <button class="filter-btn" id="tab-monthly" onclick="filterLeaderboard('monthly')">Mes</button>
-            <button class="filter-btn" id="tab-all" onclick="filterLeaderboard('all')">Top Histórico</button>
+            <button class="filter-btn" id="tab-all" onclick="filterLeaderboard('all')">Histórico</button>
         </div>
 
         <ul id="leaderboard-list"></ul>
         
-        <!-- Zona Admin Oculta -->
         <div id="admin-panel">
             <h4 style="margin: 0; color: #ff5252;">Zona Peligrosa (Admin)</h4>
             <input type="password" id="admin-pwd" placeholder="Clave secreta..." />
@@ -298,18 +300,16 @@
         </div>
     </div>
 
-    <!-- Panel Info (Durante el Juego) -->
     <div id="info-panel">
         <h3 id="info-title">Unidad</h3>
         <p id="info-desc">Descripción</p>
         <div id="info-lvl4" class="lvl4-desc">Nivel 4: Poder</div>
     </div>
 
-    <div id="game-area">
-        <div id="range-indicator"></div>
-        <div id="bridge-container"><div id="grid"></div></div>
-        <div id="pond-zone">🌸 Estanque Sagrado 🌸</div>
-    </div>
+    <div id="range-indicator"></div>
+    <div id="bridge-container"><div id="grid"></div></div>
+    <div id="pond-zone">🌸 Estanque Sagrado 🌸</div>
+</div>
 
     <audio id="bg-music" playsinline preload="auto"></audio>
 
@@ -318,7 +318,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Exponer funciones globales
         window.startGame = startGame;
         window.showStartScreen = showStartScreen;
         window.togglePause = togglePause;
@@ -326,8 +325,6 @@
         window.toggleMusic = toggleMusic;
         window.summonUnit = summonUnit;
         window.restartGame = restartGame;
-        
-        // --- SISTEMA DE RANKING Y ADMIN ---
         window.openLeaderboard = openLeaderboard;
         window.hideLeaderboard = hideLeaderboard;
         window.filterLeaderboard = filterLeaderboard;
@@ -336,7 +333,7 @@
 
         let db, auth, currentUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'estanque-defensor';
-        let allScoresCache = []; // Guardamos los scores descargados para filtrar rápido
+        let allScoresCache = []; 
 
         async function initFirebase() {
             if (typeof __firebase_config === 'undefined') return;
@@ -358,7 +355,7 @@
 
         async function openLeaderboard() {
             document.getElementById('leaderboard-modal').style.display = 'flex';
-            document.getElementById('admin-panel').style.display = 'none'; // Esconder admin al abrir
+            document.getElementById('admin-panel').style.display = 'none'; 
             const listEl = document.getElementById('leaderboard-list');
             listEl.innerHTML = '<li style="justify-content: center;">Cargando récords en la nube... ⏳</li>';
             
@@ -373,20 +370,17 @@
                 allScoresCache = [];
                 snapshot.forEach(docSnap => {
                     let data = docSnap.data();
-                    data.id = docSnap.id; // Guardamos el ID por si necesitamos borrarlo (Admin)
+                    data.id = docSnap.id; 
                     allScoresCache.push(data);
                 });
                 
-                // Por defecto mostrar los de Hoy (daily)
                 filterLeaderboard('daily');
-
             } catch (e) {
                 listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al cargar el ranking.</li>';
             }
         }
 
         function filterLeaderboard(filterType) {
-            // Actualizar botones visualmente
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tab-${filterType}`).classList.add('active');
 
@@ -395,7 +389,6 @@
 
             const now = new Date();
             
-            // Filtramos en memoria para no usar queries complejas de Firebase (Regla 2)
             let filtered = allScoresCache.filter(s => {
                 if (!s.date) return false;
                 const scoreDate = new Date(s.date);
@@ -405,7 +398,7 @@
                 if (filterType === 'daily') return diffDays <= 1;
                 if (filterType === 'weekly') return diffDays <= 7;
                 if (filterType === 'monthly') return diffDays <= 30;
-                return true; // 'all'
+                return true; 
             });
 
             filtered.sort((a, b) => b.wave - a.wave); 
@@ -433,7 +426,6 @@
 
         async function adminWipeRankings() {
             const pwdInput = document.getElementById('admin-pwd').value;
-            // ¡ESTA ES LA CLAVE SECRETA PARA BORRAR LOS RANKINGS!
             if (pwdInput !== "secreto123") {
                 document.getElementById('admin-pwd').value = "";
                 document.getElementById('admin-pwd').placeholder = "¡Clave Incorrecta!";
@@ -444,7 +436,6 @@
             listEl.innerHTML = '<li style="justify-content: center; color: red;">Borrando base de datos... 💥</li>';
 
             try {
-                // Borramos todos los documentos uno por uno de la base de datos
                 for (let score of allScoresCache) {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', score.id));
                 }
@@ -452,7 +443,7 @@
                 document.getElementById('admin-pwd').value = "";
                 document.getElementById('admin-pwd').placeholder = "Clave secreta...";
                 toggleAdminPanel();
-                openLeaderboard(); // Recargar para mostrar que está vacío
+                openLeaderboard(); 
             } catch (e) {
                 listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al borrar.</li>';
             }
@@ -461,7 +452,7 @@
         async function saveScore() {
             if (!currentUser || !db) return; 
             const playerNameInput = document.getElementById('player-name').value.trim();
-            const playerName = playerNameInput !== "" ? playerNameInput : "Guardián Anónimo";
+            const playerName = playerNameInput !== "" ? playerNameInput : "Anónimo";
             
             try {
                 const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
@@ -493,7 +484,7 @@
 
         let isMusicEnabled = false; 
 
-        // ⚠️ IMPORTANTE: Renombra tus canciones en tu PC a estos nombres exactos para que funcionen en el celular sin errores.
+        // LOS NOMBRES LIMPIOS PARA QUE NO FALLE EN CELULAR
         const musicPlaylist = [
             'pista1.mp3', 'pista2.mp3', 'pista3.mp3', 'pista4.mp3', 
             'pista5.mp3', 'pista6.mp3', 'pista7.mp3', 'pista8.mp3'
@@ -505,15 +496,21 @@
             const trackFile = musicPlaylist[randomIndex]; 
             
             bgMusic.src = trackFile;
+            bgMusic.load(); // Vital para móviles
+            
             bgMusic.play().then(() => {
-                let trackName = trackFile.replace('.mp3', '');
-                musicBtn.innerText = `🎵 ${trackName.toUpperCase()}`;
+                let trackName = trackFile.replace('.mp3', '').toUpperCase();
+                musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("No se pudo cargar la canción:", trackFile);
-                musicBtn.innerText = "🎵 Error de Archivo";
+                console.log("Audio block/error:", e);
+                if (e.name === 'NotAllowedError') {
+                    musicBtn.innerText = "🎵 Pausado (Toca)";
+                } else {
+                    musicBtn.innerText = "🎵 Archivo no hallado";
+                    isMusicEnabled = false;
+                }
                 musicBtn.style.background = "#ffb74d";
-                isMusicEnabled = false;
             });
         }
 
@@ -533,18 +530,18 @@
             }
         }
         
-        // Un pequeño retraso de 500ms al cambiar canción evita que el celular bloquee la reproducción automática
         bgMusic.addEventListener('ended', () => {
-            setTimeout(playRandomMusic, 500);
+            setTimeout(playRandomMusic, 500); // Retraso suave para navegadores estrictos
         });
 
+        // --- SISTEMA PRINCIPAL ---
         const COLS = 10;
-        const ROWS = 20; // Aumentado a 20 filas
+        const ROWS = 15; // Ajustado a 15 filas (150 casillas) para equilibrio visual
         let cellW = 0, cellH = 0, gridTop = 0;
 
         let state = {
             energy: 60, pondHp: 100, summonCost: 15,
-            unlockedCount: 20, // Inicias con 20 cuadritos (2 filas) para tener un poco de espacio
+            unlockedCount: 20, // Inicias con 20 casillas
             scoreSaved: false,
             isRunning: false, isPaused: false, autoMode: false, autoTimer: 0,
             timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
@@ -625,7 +622,7 @@
             document.getElementById('btn-start-game').disabled = selectedDeck.length !== 4;
         }
 
-        initDeckBuilder();
+        window.onload = initDeckBuilder;
 
         function showStartScreen() {
             document.getElementById('start-screen').style.display = 'flex';
@@ -649,7 +646,7 @@
                 units = []; blockers = []; enemies = []; projectiles = [];
 
                 state = {
-                    energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10, scoreSaved: false,
+                    energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 20, scoreSaved: false,
                     isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
                     timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
                     spawnTimer: 0, lastFrame: performance.now()
@@ -716,8 +713,8 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.35 - 90; // Ajustado para el nuevo alto (65% puente, 35% sobra)
-            bridgeContainer.style.height = '65%';
+            gridTop = gameRect.height * 0.40 - 80; 
+            bridgeContainer.style.height = '60%'; // Ocupa el 60% inferior
             cellW = gameRect.width / COLS;
             cellH = bridgeContainer.clientHeight / ROWS;
             units.forEach(u => updateEntityPos(u));
@@ -732,8 +729,9 @@
 
         function updateGridVisuals() {
             const cells = gridEl.children;
-            for(let i=0; i<200; i++) { // 200 casillas totales
-                if (i >= 200 - state.unlockedCount) cells[i].classList.add('unlocked');
+            const totalCells = COLS * ROWS; // 150
+            for(let i=0; i<totalCells; i++) {
+                if (i >= totalCells - state.unlockedCount) cells[i].classList.add('unlocked');
                 else cells[i].classList.remove('unlocked');
             }
         }
@@ -770,10 +768,11 @@
             if (state.energy < state.summonCost) return;
             
             let emptyCells = [];
+            const totalCells = COLS * ROWS;
             for(let r=0; r<ROWS; r++) {
                 for(let c=0; c<COLS; c++) {
                     let cellIndex = r * COLS + c;
-                    if(cellIndex >= (200 - state.unlockedCount) && !getUnitAt(c, r)) {
+                    if(cellIndex >= (totalCells - state.unlockedCount) && !getUnitAt(c, r)) {
                         emptyCells.push({col: c, row: r});
                     }
                 }
@@ -862,8 +861,9 @@
                 const newCol = Math.floor(dropX / cellW); 
                 const newRow = Math.floor(dropY / cellH);
                 const cellIndex = newRow * COLS + newCol;
+                const totalCells = COLS * ROWS;
 
-                if(newCol >= 0 && newCol < COLS && newRow >= 0 && newRow < ROWS && cellIndex >= (200 - state.unlockedCount)) {
+                if(newCol >= 0 && newCol < COLS && newRow >= 0 && newRow < ROWS && cellIndex >= (totalCells - state.unlockedCount)) {
                     const targetUnit = getUnitAt(newCol, newRow);
                     if(targetUnit && targetUnit !== unit) {
                         if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 4) {
@@ -883,7 +883,7 @@
                             playChime('merge');
                             unit.el.remove(); units = units.filter(u => u.id !== unit.id);
                             
-                            state.unlockedCount = Math.min(200, state.unlockedCount + 1);
+                            state.unlockedCount = Math.min(totalCells, state.unlockedCount + 1);
                             updateGridVisuals();
                         } else {
                             const oldCol = unit.col; const oldRow = unit.row;
@@ -1054,7 +1054,8 @@
                                 playChime('merge');
                                 u2.el.remove(); units.splice(j, 1);
                                 
-                                state.unlockedCount = Math.min(200, state.unlockedCount + 1);
+                                const totalCells = COLS * ROWS;
+                                state.unlockedCount = Math.min(totalCells, state.unlockedCount + 1);
                                 updateGridVisuals();
                                 merged = true;
                             }
@@ -1299,7 +1300,7 @@
                     }
                 } else {
                     e.y += e.baseSpeed * e.speedMultiplier * dt; e.el.style.top = `${e.y}px`;
-                    if (e.y > gameArea.clientHeight - 90) { 
+                    if (e.y > gameArea.clientHeight - 80) { 
                         state.pondHp = Math.max(0, state.pondHp - (e.isBoss ? 40 : 10)); updateUI(); 
                         
                         // --- GUARDAR SCORE AL PERDER ---
