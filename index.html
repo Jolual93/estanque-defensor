@@ -10,15 +10,15 @@
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #050508; /* Fondo oscuro para los bordes en PC */
+            background-color: #050508; 
             color: white; overflow: hidden;
-            display: flex; justify-content: center; /* Centrar en PC */
+            display: flex; justify-content: center; 
         }
 
         /* --- Área de Juego Principal (Forzado a formato vertical móvil) --- */
         #game-area {
             width: 100%; 
-            max-width: min(100%, 60vh); /* Esto evita que se aplaste en PC y lo mantiene vertical */
+            max-width: min(100%, 65vh); /* Evita que se estire en monitores anchos */
             height: 100%; 
             position: relative; overflow: hidden;
             background: linear-gradient(to bottom, #1f1f3a 0%, #121220 100%);
@@ -68,29 +68,29 @@
             background: rgba(255,255,255,0.03); pointer-events: none;
         }
 
-        /* --- El Puente 10x15 --- */
+        /* --- El Puente Ajustado --- */
         #bridge-container {
-            position: absolute; bottom: 80px; left: 0; width: 100%; 
-            height: 60%; /* Toma un buen espacio, pero deja margen para los enemigos */
-            pointer-events: none;
+            position: absolute; left: 0; bottom: 80px; 
+            pointer-events: none; margin: 0 auto;
         }
 
         #grid {
-            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(15, 1fr); /* 15 Filas */
+            display: grid; 
+            /* Se configurará vía JS para asegurar cuadrados perfectos */
             width: 100%; height: 100%; pointer-events: auto;
         }
 
         .grid-cell {
-            border: 1px solid rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             background: transparent;
             transition: background 0.4s, border 0.4s;
             pointer-events: none;
         }
 
         .grid-cell.unlocked {
-            border: 1px dashed rgba(129, 199, 132, 0.3);
-            background: rgba(50, 50, 75, 0.5);
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+            border: 1px dashed rgba(129, 199, 132, 0.4);
+            background: rgba(50, 50, 75, 0.6);
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
         }
 
         /* Estanque (Base a defender) */
@@ -105,7 +105,7 @@
         /* --- Entidades --- */
         .entity { position: absolute; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; flex-direction: column; }
         
-        .unit { font-size: clamp(14px, 4vw, 24px); cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
+        .unit { cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
         .unit:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 100; transition: none; }
 
         .level-indicator {
@@ -211,7 +211,7 @@
         .admin-lock:hover { opacity: 1; }
 
         /* Pestañas de Filtro */
-        .filter-tabs { display: flex; justify-content: center; gap: 5px; margin-top: 15px; }
+        .filter-tabs { display: flex; justify-content: center; gap: 5px; margin-top: 15px; flex-wrap: wrap;}
         .filter-btn { 
             background: rgba(255,255,255,0.1); border: none; color: #ccc; padding: 6px 12px;
             border-radius: 15px; cursor: pointer; font-size: 0.9rem; transition: 0.2s;
@@ -266,6 +266,10 @@
             <div class="admin-lock" onclick="toggleAdminPanel()" title="Panel de Administrador">🔒</div>
         </div>
         
+        <div id="ranking-warning" style="display:none; color: #ffb74d; font-size: 0.8rem; margin-top: 5px;">
+            ⚠️ Mostrando solo tus récords locales.
+        </div>
+
         <div class="filter-tabs">
             <button class="filter-btn active" id="tab-daily" onclick="filterLeaderboard('daily')">Hoy</button>
             <button class="filter-btn" id="tab-weekly" onclick="filterLeaderboard('weekly')">Semana</button>
@@ -334,9 +338,13 @@
         let db, auth, currentUser;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'estanque-defensor';
         let allScoresCache = []; 
+        let isFirebaseActive = false;
 
         async function initFirebase() {
-            if (typeof __firebase_config === 'undefined') return;
+            if (typeof __firebase_config === 'undefined') {
+                isFirebaseActive = false;
+                return;
+            }
             try {
                 const firebaseConfig = JSON.parse(__firebase_config);
                 const app = initializeApp(firebaseConfig);
@@ -348,8 +356,14 @@
                 } else {
                     await signInAnonymously(auth);
                 }
-                onAuthStateChanged(auth, (user) => { currentUser = user; });
-            } catch (e) { console.error("Firebase error", e); }
+                onAuthStateChanged(auth, (user) => { 
+                    currentUser = user; 
+                    if(user) isFirebaseActive = true; 
+                });
+            } catch (e) { 
+                console.error("Firebase error", e); 
+                isFirebaseActive = false;
+            }
         }
         initFirebase();
 
@@ -357,13 +371,19 @@
             document.getElementById('leaderboard-modal').style.display = 'flex';
             document.getElementById('admin-panel').style.display = 'none'; 
             const listEl = document.getElementById('leaderboard-list');
-            listEl.innerHTML = '<li style="justify-content: center;">Cargando récords en la nube... ⏳</li>';
+            const warningEl = document.getElementById('ranking-warning');
             
-            if (!currentUser || !db) {
-                listEl.innerHTML = '<li style="justify-content: center; text-align: center; color: #ff8a80;">Conexión a la nube no disponible.</li>';
+            listEl.innerHTML = '<li style="justify-content: center;">Cargando récords... ⏳</li>';
+            
+            // Si no hay Firebase, usamos el sistema LocalStorage de respaldo
+            if (!isFirebaseActive) {
+                warningEl.style.display = 'block';
+                allScoresCache = JSON.parse(localStorage.getItem('estanque_ranking') || '[]');
+                filterLeaderboard('all'); // Mostrar todos en local por defecto
                 return;
             }
 
+            warningEl.style.display = 'none';
             try {
                 const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
                 const snapshot = await getDocs(leaderboardRef);
@@ -373,7 +393,6 @@
                     data.id = docSnap.id; 
                     allScoresCache.push(data);
                 });
-                
                 filterLeaderboard('daily');
             } catch (e) {
                 listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al cargar el ranking.</li>';
@@ -405,7 +424,7 @@
             filtered = filtered.slice(0, 10); 
             
             if (filtered.length === 0) {
-                listEl.innerHTML = '<li style="justify-content: center;">Aún no hay récords en esta categoría.</li>';
+                listEl.innerHTML = '<li style="justify-content: center;">Aún no hay récords.</li>';
             } else {
                 filtered.forEach((s, index) => {
                     const li = document.createElement('li');
@@ -433,36 +452,46 @@
             }
 
             const listEl = document.getElementById('leaderboard-list');
-            listEl.innerHTML = '<li style="justify-content: center; color: red;">Borrando base de datos... 💥</li>';
+            listEl.innerHTML = '<li style="justify-content: center; color: red;">Borrando... 💥</li>';
 
-            try {
-                for (let score of allScoresCache) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', score.id));
+            if (!isFirebaseActive) {
+                localStorage.removeItem('estanque_ranking');
+                allScoresCache = [];
+            } else {
+                try {
+                    for (let score of allScoresCache) {
+                        if(score.id) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', score.id));
+                    }
+                } catch (e) {
+                    listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al borrar base de datos.</li>';
+                    return;
                 }
-                
-                document.getElementById('admin-pwd').value = "";
-                document.getElementById('admin-pwd').placeholder = "Clave secreta...";
-                toggleAdminPanel();
-                openLeaderboard(); 
-            } catch (e) {
-                listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al borrar.</li>';
             }
+            
+            document.getElementById('admin-pwd').value = "";
+            document.getElementById('admin-pwd').placeholder = "Clave secreta...";
+            toggleAdminPanel();
+            openLeaderboard(); 
         }
 
         async function saveScore() {
-            if (!currentUser || !db) return; 
             const playerNameInput = document.getElementById('player-name').value.trim();
             const playerName = playerNameInput !== "" ? playerNameInput : "Anónimo";
+            const scoreData = { name: playerName, wave: state.wave, date: new Date().toISOString() };
+
+            if (!isFirebaseActive) {
+                // Guardado de Respaldo Local (Para Vercel sin configurar)
+                let localScores = JSON.parse(localStorage.getItem('estanque_ranking') || '[]');
+                localScores.push(scoreData);
+                localStorage.setItem('estanque_ranking', JSON.stringify(localScores));
+                return;
+            }
             
             try {
                 const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
-                await addDoc(leaderboardRef, {
-                    name: playerName,
-                    wave: state.wave,
-                    date: new Date().toISOString()
-                });
+                await addDoc(leaderboardRef, scoreData);
             } catch (e) {
-                console.error("Error guardando el récord", e);
+                console.error("Error guardando el récord en la nube", e);
             }
         }
 
@@ -484,7 +513,7 @@
 
         let isMusicEnabled = false; 
 
-        // LOS NOMBRES LIMPIOS PARA QUE NO FALLE EN CELULAR
+        // LOS NOMBRES EXACTOS PARA EVITAR BLOQUEOS EN CELULAR
         const musicPlaylist = [
             'pista1.mp3', 'pista2.mp3', 'pista3.mp3', 'pista4.mp3', 
             'pista5.mp3', 'pista6.mp3', 'pista7.mp3', 'pista8.mp3'
@@ -496,21 +525,17 @@
             const trackFile = musicPlaylist[randomIndex]; 
             
             bgMusic.src = trackFile;
-            bgMusic.load(); // Vital para móviles
+            bgMusic.load(); 
             
             bgMusic.play().then(() => {
                 let trackName = trackFile.replace('.mp3', '').toUpperCase();
                 musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("Audio block/error:", e);
-                if (e.name === 'NotAllowedError') {
-                    musicBtn.innerText = "🎵 Pausado (Toca)";
-                } else {
-                    musicBtn.innerText = "🎵 Archivo no hallado";
-                    isMusicEnabled = false;
-                }
+                console.log("Audio block:", e);
+                musicBtn.innerText = "🎵 Pausado (Toca)";
                 musicBtn.style.background = "#ffb74d";
+                isMusicEnabled = false;
             });
         }
 
@@ -520,7 +545,7 @@
                 if (!bgMusic.src || bgMusic.src === "" || bgMusic.src === window.location.href) {
                     playRandomMusic();
                 } else {
-                    bgMusic.play().catch(()=>{});
+                    bgMusic.play().catch(()=>{ playRandomMusic(); });
                     musicBtn.style.background = "#81c784";
                 }
             } else {
@@ -531,20 +556,19 @@
         }
         
         bgMusic.addEventListener('ended', () => {
-            setTimeout(playRandomMusic, 500); // Retraso suave para navegadores estrictos
+            setTimeout(playRandomMusic, 500); 
         });
 
         // --- SISTEMA PRINCIPAL ---
         const COLS = 10;
-        const ROWS = 15; // Ajustado a 15 filas (150 casillas) para equilibrio visual
+        const ROWS = 15; 
         let cellW = 0, cellH = 0, gridTop = 0;
 
         let state = {
             energy: 60, pondHp: 100, summonCost: 15,
-            unlockedCount: 20, // Inicias con 20 casillas
-            scoreSaved: false,
+            unlockedCount: 20, scoreSaved: false,
             isRunning: false, isPaused: false, autoMode: false, autoTimer: 0,
-            timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
+            timeElapsed: 0, wave: 1, nextBossWave: 10,
             spawnTimer: 0, lastFrame: performance.now()
         };
 
@@ -648,7 +672,7 @@
                 state = {
                     energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 20, scoreSaved: false,
                     isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
-                    timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
+                    timeElapsed: 0, wave: 1, nextBossWave: 10,
                     spawnTimer: 0, lastFrame: performance.now()
                 };
 
@@ -713,23 +737,41 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.40 - 80; 
-            bridgeContainer.style.height = '60%'; // Ocupa el 60% inferior
-            cellW = gameRect.width / COLS;
-            cellH = bridgeContainer.clientHeight / ROWS;
-            units.forEach(u => updateEntityPos(u));
+            
+            // Forzar celdas Cuadradas Perfectas
+            let size = gameRect.width / COLS;
+            
+            // Si el puente queda demasiado alto para la pantalla, encogemos las celdas
+            if ((size * ROWS) + 80 > gameRect.height * 0.80) { 
+                size = (gameRect.height * 0.80 - 80) / ROWS;
+            }
+            
+            cellW = size;
+            cellH = size;
+            
+            // Centrar y dimensionar el puente exactamente
+            const gridWidth = cellW * COLS;
+            bridgeContainer.style.width = `${gridWidth}px`;
+            bridgeContainer.style.left = `${(gameRect.width - gridWidth) / 2}px`;
+            bridgeContainer.style.height = `${ROWS * cellH}px`;
+            bridgeContainer.style.bottom = '80px'; 
+            
+            units.forEach(u => {
+                u.el.style.fontSize = `${cellW * 0.6}px`; // Escalar unidades
+                updateEntityPos(u);
+            });
         }
 
         function getPosFromColRow(col, row) {
             const bridgeRect = bridgeContainer.getBoundingClientRect();
             const gameRect = gameArea.getBoundingClientRect();
             const absoluteGridTop = bridgeRect.top - gameRect.top;
-            return { x: col * cellW + cellW / 2, y: absoluteGridTop + (row * cellH) + cellH / 2 };
+            return { x: bridgeRect.left - gameRect.left + (col * cellW) + cellW / 2, y: absoluteGridTop + (row * cellH) + cellH / 2 };
         }
 
         function updateGridVisuals() {
             const cells = gridEl.children;
-            const totalCells = COLS * ROWS; // 150
+            const totalCells = COLS * ROWS; 
             for(let i=0; i<totalCells; i++) {
                 if (i >= totalCells - state.unlockedCount) cells[i].classList.add('unlocked');
                 else cells[i].classList.remove('unlocked');
@@ -793,6 +835,7 @@
             const el = document.createElement('div');
             el.className = 'entity unit'; 
             el.dataset.level = level;
+            el.style.fontSize = `${cellW * 0.6}px`;
             
             const emojiSpan = document.createElement('span');
             emojiSpan.textContent = data.emoji;
@@ -855,7 +898,7 @@
                 
                 const bridgeRect = bridgeContainer.getBoundingClientRect();
                 const gameRect = gameArea.getBoundingClientRect();
-                const dropX = e.clientX - gameRect.left; 
+                const dropX = e.clientX - gameRect.left - (bridgeRect.left - gameRect.left); 
                 const dropY = e.clientY - bridgeRect.top; 
                 
                 const newCol = Math.floor(dropX / cellW); 
@@ -930,7 +973,7 @@
             state = {
                 energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 20, scoreSaved: false,
                 isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
-                timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
+                timeElapsed: 0, wave: 1, nextBossWave: 10,
                 spawnTimer: 0, lastFrame: performance.now()
             };
 
@@ -956,7 +999,10 @@
         }
 
         function spawnEnemy() {
+            const bridgeRect = bridgeContainer.getBoundingClientRect();
+            const gameRect = gameArea.getBoundingClientRect();
             const lane = Math.floor(Math.random() * COLS);
+            
             const el = document.createElement('div');
             el.className = 'entity enemy'; 
             const emojiSpan = document.createElement('span');
@@ -964,7 +1010,8 @@
             el.appendChild(emojiSpan);
             const hpBar = createHealthBar(el);
 
-            const x = lane * cellW + cellW / 2; const y = -20;
+            const x = bridgeRect.left - gameRect.left + (lane * cellW) + cellW / 2; 
+            const y = -20;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
 
@@ -976,7 +1023,10 @@
         }
 
         function spawnBoss() {
+            const bridgeRect = bridgeContainer.getBoundingClientRect();
+            const gameRect = gameArea.getBoundingClientRect();
             const lane = Math.floor(COLS / 2); 
+            
             const el = document.createElement('div');
             el.className = 'entity enemy boss';
             const emojiSpan = document.createElement('span');
@@ -984,7 +1034,8 @@
             el.appendChild(emojiSpan);
             const hpBar = createHealthBar(el);
 
-            const x = lane * cellW + cellW / 2; const y = -40;
+            const x = bridgeRect.left - gameRect.left + (lane * cellW) + cellW / 2; 
+            const y = -40;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
 
@@ -1006,23 +1057,25 @@
                 return; 
             }
             
-            const dt = (currentTime - state.lastFrame) / 1000;
+            // FIX: Límite estricto de tiempo para evitar saltos al cambiar de pestaña
+            let dt = (currentTime - state.lastFrame) / 1000;
+            if (dt > 0.1) dt = 0.016; 
             state.lastFrame = currentTime;
 
             state.timeElapsed += dt;
             const newWave = 1 + Math.floor(state.timeElapsed / 15); 
             if (newWave > state.wave) {
                 state.wave = newWave;
-                state.bossSpawnedForWave = false;
                 updateUI();
                 spawnText(gameArea.clientWidth/2, 100, `¡Oleada ${state.wave}!`, "#ce93d8");
             }
 
             state.spawnTimer -= dt;
             if (state.spawnTimer <= 0) {
-                if (state.wave % 10 === 0 && !state.bossSpawnedForWave) {
+                // FIX: El Jefe ahora es imposible de saltar
+                if (state.wave >= state.nextBossWave) {
                     spawnBoss();
-                    state.bossSpawnedForWave = true;
+                    state.nextBossWave += 10;
                     state.spawnTimer = 6.0; 
                 } else {
                     spawnEnemy(); 
@@ -1245,6 +1298,17 @@
                 b.hp -= 3 * dt; 
                 if (b.hpBar) b.hpBar.style.width = `${Math.max(0, (b.hp / b.maxHp) * 100)}%`;
                 
+                // FIX: Lógica de separación de osos (Repulsión en manada)
+                for (let j = 0; j < blockers.length; j++) {
+                    if (i !== j) {
+                        let other = blockers[j];
+                        let dist = Math.hypot(other.x - b.x, other.y - b.y);
+                        if (dist < 20 && dist > 0) { // Si están muy pegados, se repelen ligeramente
+                            b.x += (b.x - other.x) * 1.5 * dt;
+                        }
+                    }
+                }
+
                 let engagedEnemy = enemies.find(e => Math.hypot(e.x - b.x, e.y - b.y) < (e.isBoss ? 50 : 35));
 
                 if (engagedEnemy) {
@@ -1303,7 +1367,6 @@
                     if (e.y > gameArea.clientHeight - 80) { 
                         state.pondHp = Math.max(0, state.pondHp - (e.isBoss ? 40 : 10)); updateUI(); 
                         
-                        // --- GUARDAR SCORE AL PERDER ---
                         if (state.pondHp <= 0 && !state.scoreSaved) {
                             state.scoreSaved = true;
                             saveScore();
@@ -1364,7 +1427,10 @@
             el.appendChild(emojiSpan);
             const hpBar = createHealthBar(el);
 
-            const x = col * cellW + cellW / 2;
+            const bridgeRect = bridgeContainer.getBoundingClientRect();
+            const gameRect = gameArea.getBoundingClientRect();
+            const x = bridgeRect.left - gameRect.left + (col * cellW) + cellW / 2;
+            
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
             
