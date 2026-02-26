@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>El Estanque Defensor - Mazo Estratégico y Nivel 4</title>
+    <title>El Estanque Defensor - Rankings y Mazo</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -63,14 +63,14 @@
             background: rgba(255,255,255,0.03); pointer-events: none;
         }
 
-        /* --- El Puente 10x10 --- */
+        /* --- El Puente 10x20 --- */
         #bridge-container {
-            position: absolute; bottom: 80px; left: 0; width: 100%; height: 55%;
+            position: absolute; bottom: 80px; left: 0; width: 100%; height: 65%; /* Ahora es más alto */
             pointer-events: none;
         }
 
         #grid {
-            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr);
+            display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(20, 1fr); /* 20 Filas */
             width: 100%; height: 100%; pointer-events: auto;
         }
 
@@ -129,8 +129,6 @@
 
         /* Efectos Visuales por Niveles */
         .unit[data-level="3"] { filter: drop-shadow(0 0 8px rgba(129, 199, 132, 0.8)); }
-        
-        /* ¡NUEVO! Efecto Nivel 4 (Máximo Poder) */
         .unit[data-level="4"] { 
             filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)); 
             animation: pulseUnitMax 1.5s infinite alternate ease-in-out; 
@@ -186,6 +184,48 @@
         
         #btn-start-game:disabled { background: #555; color: #999; cursor: not-allowed; }
 
+        /* --- Ranking y Jugador --- */
+        .player-input {
+            padding: 10px; font-size: 1rem; border-radius: 10px; border: none; outline: none;
+            text-align: center; margin-bottom: 15px; width: 80%; max-width: 250px;
+            background: rgba(255, 255, 255, 0.9); color: #121220; font-weight: bold;
+        }
+
+        #leaderboard-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(20, 20, 35, 0.98); border: 2px solid #ffb74d; border-radius: 15px;
+            padding: 20px; text-align: center; z-index: 3000; width: 90%; max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; flex-direction: column;
+        }
+        
+        .leaderboard-header { display: flex; justify-content: center; align-items: center; gap: 10px; position: relative; }
+        #leaderboard-modal h2 { margin: 0; color: #ffeb3b; font-size: 1.5rem; }
+        
+        .admin-lock { cursor: pointer; font-size: 1.2rem; opacity: 0.5; transition: opacity 0.2s; }
+        .admin-lock:hover { opacity: 1; }
+
+        /* Pestañas de Filtro */
+        .filter-tabs { display: flex; justify-content: center; gap: 5px; margin-top: 15px; }
+        .filter-btn { 
+            background: rgba(255,255,255,0.1); border: none; color: #ccc; padding: 6px 12px;
+            border-radius: 15px; cursor: pointer; font-size: 0.9rem; transition: 0.2s;
+        }
+        .filter-btn.active { background: #81c784; color: #000; font-weight: bold; }
+
+        #leaderboard-list { 
+            list-style: none; padding: 0; margin: 15px 0; text-align: left; 
+            color: #e0e0e0; max-height: 250px; overflow-y: auto; font-size: 1.1rem;
+        }
+        #leaderboard-list li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
+        #leaderboard-list li:first-child { color: #ffd54f; font-weight: bold; font-size: 1.3rem; border-bottom: 2px solid #ffd54f; }
+
+        /* Panel Administrador Secreto */
+        #admin-panel {
+            display: none; flex-direction: column; gap: 10px; margin-top: 15px;
+            padding: 15px; background: rgba(255,0,0,0.1); border: 1px dashed red; border-radius: 10px;
+        }
+        #admin-panel input { padding: 8px; border-radius: 5px; border: none; text-align: center; }
+
     </style>
 </head>
 <body>
@@ -193,14 +233,14 @@
     <div id="start-screen">
         <h1 style="color: #81c784; font-size: 2.2rem; margin-bottom: 5px;">El Estanque Continuo</h1>
         <p style="color: #b2ebf2; font-size: 0.95rem; max-width: 400px; margin-bottom: 15px;">
-            ¡Ahora con niveles hasta <b>4 ESTRELLAS</b> ⭐⭐⭐⭐!<br>
             Elige tus <b>4 guardianes</b> favoritos para esta partida.
         </p>
+
+        <!-- Input de Jugador para Ranking -->
+        <input type="text" id="player-name" class="player-input" placeholder="Tu nombre o apodo..." maxlength="15" />
         
         <!-- Sistema de Mazo (Deck Builder) -->
-        <div class="deck-grid" id="deck-grid">
-            <!-- Rellenado por JavaScript -->
-        </div>
+        <div class="deck-grid" id="deck-grid"></div>
 
         <!-- Cajita Descriptiva para explicar habilidades -->
         <div id="deck-preview-box">
@@ -209,7 +249,37 @@
 
         <div id="deck-status">0 / 4 Seleccionados</div>
 
-        <button id="btn-start-game" class="btn btn-summon" style="font-size: 1.2rem; padding: 15px 40px;" disabled onclick="startGame()">Comenzar</button>
+        <div style="display: flex; gap: 10px;">
+            <button id="btn-start-game" class="btn btn-summon" style="font-size: 1.2rem; padding: 15px 25px;" disabled onclick="startGame()">Comenzar</button>
+            <button class="btn btn-music" style="font-size: 1.1rem; padding: 15px 15px;" onclick="openLeaderboard()">🏆 Ranking</button>
+        </div>
+    </div>
+
+    <!-- Modal Ranking -->
+    <div id="leaderboard-modal">
+        <div class="leaderboard-header">
+            <h2>🏆 Mejores Defensores</h2>
+            <div class="admin-lock" onclick="toggleAdminPanel()" title="Panel de Administrador">🔒</div>
+        </div>
+        
+        <!-- Pestañas de Tiempo -->
+        <div class="filter-tabs">
+            <button class="filter-btn active" id="tab-daily" onclick="filterLeaderboard('daily')">Hoy</button>
+            <button class="filter-btn" id="tab-weekly" onclick="filterLeaderboard('weekly')">Semana</button>
+            <button class="filter-btn" id="tab-monthly" onclick="filterLeaderboard('monthly')">Mes</button>
+            <button class="filter-btn" id="tab-all" onclick="filterLeaderboard('all')">Top Histórico</button>
+        </div>
+
+        <ul id="leaderboard-list"></ul>
+        
+        <!-- Zona Admin Oculta -->
+        <div id="admin-panel">
+            <h4 style="margin: 0; color: #ff5252;">Zona Peligrosa (Admin)</h4>
+            <input type="password" id="admin-pwd" placeholder="Clave secreta..." />
+            <button class="btn" style="background: red; color: white;" onclick="adminWipeRankings()">Borrar Todos los Récords</button>
+        </div>
+
+        <button class="btn btn-pause" style="padding: 12px; font-size: 1.1rem; margin-top: 10px;" onclick="hideLeaderboard()">Cerrar</button>
     </div>
 
     <div id="top-ui">
@@ -223,6 +293,7 @@
             <button id="pause-btn" class="btn btn-pause" onclick="togglePause()">⏸️ Pausa</button>
             <button id="auto-btn" class="btn btn-auto" onclick="toggleAuto()">🤖 Auto: OFF</button>
             <button id="music-btn" class="btn btn-music" onclick="toggleMusic()">🎵 Música: OFF</button>
+            <button id="btn-ranking-in-game" class="btn btn-music" onclick="openLeaderboard()">🏆 Ranking</button>
             <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none; grid-column: span 2;" onclick="showStartScreen()">Cambiar Mazo y Reiniciar</button>
         </div>
     </div>
@@ -242,7 +313,168 @@
 
     <audio id="bg-music" playsinline preload="auto"></audio>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Exponer funciones globales
+        window.startGame = startGame;
+        window.showStartScreen = showStartScreen;
+        window.togglePause = togglePause;
+        window.toggleAuto = toggleAuto;
+        window.toggleMusic = toggleMusic;
+        window.summonUnit = summonUnit;
+        window.restartGame = restartGame;
+        
+        // --- SISTEMA DE RANKING Y ADMIN ---
+        window.openLeaderboard = openLeaderboard;
+        window.hideLeaderboard = hideLeaderboard;
+        window.filterLeaderboard = filterLeaderboard;
+        window.toggleAdminPanel = toggleAdminPanel;
+        window.adminWipeRankings = adminWipeRankings;
+
+        let db, auth, currentUser;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'estanque-defensor';
+        let allScoresCache = []; // Guardamos los scores descargados para filtrar rápido
+
+        async function initFirebase() {
+            if (typeof __firebase_config === 'undefined') return;
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                onAuthStateChanged(auth, (user) => { currentUser = user; });
+            } catch (e) { console.error("Firebase error", e); }
+        }
+        initFirebase();
+
+        async function openLeaderboard() {
+            document.getElementById('leaderboard-modal').style.display = 'flex';
+            document.getElementById('admin-panel').style.display = 'none'; // Esconder admin al abrir
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '<li style="justify-content: center;">Cargando récords en la nube... ⏳</li>';
+            
+            if (!currentUser || !db) {
+                listEl.innerHTML = '<li style="justify-content: center; text-align: center; color: #ff8a80;">Conexión a la nube no disponible.</li>';
+                return;
+            }
+
+            try {
+                const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                const snapshot = await getDocs(leaderboardRef);
+                allScoresCache = [];
+                snapshot.forEach(docSnap => {
+                    let data = docSnap.data();
+                    data.id = docSnap.id; // Guardamos el ID por si necesitamos borrarlo (Admin)
+                    allScoresCache.push(data);
+                });
+                
+                // Por defecto mostrar los de Hoy (daily)
+                filterLeaderboard('daily');
+
+            } catch (e) {
+                listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al cargar el ranking.</li>';
+            }
+        }
+
+        function filterLeaderboard(filterType) {
+            // Actualizar botones visualmente
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${filterType}`).classList.add('active');
+
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '';
+
+            const now = new Date();
+            
+            // Filtramos en memoria para no usar queries complejas de Firebase (Regla 2)
+            let filtered = allScoresCache.filter(s => {
+                if (!s.date) return false;
+                const scoreDate = new Date(s.date);
+                const diffTime = Math.abs(now - scoreDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (filterType === 'daily') return diffDays <= 1;
+                if (filterType === 'weekly') return diffDays <= 7;
+                if (filterType === 'monthly') return diffDays <= 30;
+                return true; // 'all'
+            });
+
+            filtered.sort((a, b) => b.wave - a.wave); 
+            filtered = filtered.slice(0, 10); 
+            
+            if (filtered.length === 0) {
+                listEl.innerHTML = '<li style="justify-content: center;">Aún no hay récords en esta categoría.</li>';
+            } else {
+                filtered.forEach((s, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>#${index + 1}. ${s.name}</span> <span>🌊 ${s.wave}</span>`;
+                    listEl.appendChild(li);
+                });
+            }
+        }
+
+        function hideLeaderboard() {
+            document.getElementById('leaderboard-modal').style.display = 'none';
+        }
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('admin-panel');
+            panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        async function adminWipeRankings() {
+            const pwdInput = document.getElementById('admin-pwd').value;
+            // ¡ESTA ES LA CLAVE SECRETA PARA BORRAR LOS RANKINGS!
+            if (pwdInput !== "secreto123") {
+                document.getElementById('admin-pwd').value = "";
+                document.getElementById('admin-pwd').placeholder = "¡Clave Incorrecta!";
+                return;
+            }
+
+            const listEl = document.getElementById('leaderboard-list');
+            listEl.innerHTML = '<li style="justify-content: center; color: red;">Borrando base de datos... 💥</li>';
+
+            try {
+                // Borramos todos los documentos uno por uno de la base de datos
+                for (let score of allScoresCache) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', score.id));
+                }
+                
+                document.getElementById('admin-pwd').value = "";
+                document.getElementById('admin-pwd').placeholder = "Clave secreta...";
+                toggleAdminPanel();
+                openLeaderboard(); // Recargar para mostrar que está vacío
+            } catch (e) {
+                listEl.innerHTML = '<li style="justify-content: center; color: #ff8a80;">Error al borrar.</li>';
+            }
+        }
+
+        async function saveScore() {
+            if (!currentUser || !db) return; 
+            const playerNameInput = document.getElementById('player-name').value.trim();
+            const playerName = playerNameInput !== "" ? playerNameInput : "Guardián Anónimo";
+            
+            try {
+                const leaderboardRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                await addDoc(leaderboardRef, {
+                    name: playerName,
+                    wave: state.wave,
+                    date: new Date().toISOString()
+                });
+            } catch (e) {
+                console.error("Error guardando el récord", e);
+            }
+        }
+
         let fireProjectile;
         let createBlocker;
 
@@ -261,11 +493,10 @@
 
         let isMusicEnabled = false; 
 
+        // ⚠️ IMPORTANTE: Renombra tus canciones en tu PC a estos nombres exactos para que funcionen en el celular sin errores.
         const musicPlaylist = [
-            'Bosque Lofi (1).mp3', 'Bosque Lofi.mp3', 
-            'Cielo Nocturno (1).mp3', 'Cielo Nocturno.mp3', 
-            'Jardín Acuático (1).mp3', 'Jardín Acuático.mp3', 
-            'Tarde de Osos.mp3', 'Tarde de Osos (1).mp3'
+            'pista1.mp3', 'pista2.mp3', 'pista3.mp3', 'pista4.mp3', 
+            'pista5.mp3', 'pista6.mp3', 'pista7.mp3', 'pista8.mp3'
         ];
 
         function playRandomMusic() {
@@ -275,11 +506,11 @@
             
             bgMusic.src = trackFile;
             bgMusic.play().then(() => {
-                let trackName = trackFile.replace('.mp3', '').replace(' (1)', '');
-                musicBtn.innerText = `🎵 ${trackName}`;
+                let trackName = trackFile.replace('.mp3', '');
+                musicBtn.innerText = `🎵 ${trackName.toUpperCase()}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("No se pudo cargar la canción en móvil:", trackFile);
+                console.log("No se pudo cargar la canción:", trackFile);
                 musicBtn.innerText = "🎵 Error de Archivo";
                 musicBtn.style.background = "#ffb74d";
                 isMusicEnabled = false;
@@ -301,37 +532,40 @@
                 musicBtn.style.background = "#ffb74d";
             }
         }
-        bgMusic.addEventListener('ended', playRandomMusic);
+        
+        // Un pequeño retraso de 500ms al cambiar canción evita que el celular bloquee la reproducción automática
+        bgMusic.addEventListener('ended', () => {
+            setTimeout(playRandomMusic, 500);
+        });
 
         const COLS = 10;
-        const ROWS = 10;
+        const ROWS = 20; // Aumentado a 20 filas
         let cellW = 0, cellH = 0, gridTop = 0;
 
         let state = {
             energy: 60, pondHp: 100, summonCost: 15,
-            unlockedCount: 10,
+            unlockedCount: 20, // Inicias con 20 cuadritos (2 filas) para tener un poco de espacio
+            scoreSaved: false,
             isRunning: false, isPaused: false, autoMode: false, autoTimer: 0,
             timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
             spawnTimer: 0, lastFrame: performance.now()
         };
 
-        // BASE DE DATOS ACTUALIZADA: Nivel 4 es ahora el máximo
         const ALL_UNITS = {
             tree: { emoji: '🌳', type: 'tree', cooldown: 12.0, role: 'econ', rangeCells: 0, dmg: 0, speed: 0, proj: '',
-                    name: 'Árbol Sagrado', desc: 'Genera gotas de agua poco a poco.', lvl4: 'Nivel 4: Genera muchísima agua por ciclo.' },
+                    name: 'Árbol Sagrado', desc: 'Genera gotas de agua lentamente.', lvl4: 'Nivel 4: Genera muchísima agua por ciclo.' },
             owl:  { emoji: '🦉', type: 'owl',  cooldown: 0.9, role: 'dps', dmg: 10, proj: '✨', speed: 450, rangeCells: 5.5,
                     name: 'Búho Vigía', desc: 'Dispara estrellas rápidamente a gran distancia.', lvl4: 'Nivel 4: Disparo imparable que atraviesa enemigos.' },
             frog: { emoji: '🐸', type: 'frog', cooldown: 1.5, role: 'slow', dmg: 5, proj: '💧', speed: 350, rangeCells: 3.85,
                     name: 'Rana Guardiana', desc: 'Sus gotas ralentizan a las sombras.', lvl4: 'Nivel 4: Congela por completo en área.' },
             bear: { emoji: '🐻', type: 'bear', cooldown: 5.0, role: 'summoner', dmg: 10, proj: '', speed: 0, rangeCells: 0,
-                    name: 'Oso Protector', desc: 'Invoca guardianes que rastrean y pelean cuerpo a cuerpo.', lvl4: 'Nivel 4: Invoca Osos Ancestrales gigantes con espinas.' },
+                    name: 'Oso Protector', desc: 'Invoca guardianes que rastrean y pelean.', lvl4: 'Nivel 4: Invoca Osos Ancestrales gigantes con espinas.' },
             turtle: { emoji: '🐢', type: 'turtle', cooldown: 3.5, role: 'heavy', dmg: 35, proj: '🌊', speed: 200, rangeCells: 6.0,
                     name: 'Tortuga Cañón', desc: 'Lenta, pero dispara potentes olas que hacen mucho daño.', lvl4: 'Nivel 4: Olas colosales con daño de salpicadura.' },
             squirrel: { emoji: '🐿️', type: 'squirrel', cooldown: 2.0, role: 'splash', dmg: 8, proj: '🌰', speed: 320, rangeCells: 4.5,
                     name: 'Ardilla Bombardera', desc: 'Lanza bellotas que explotan en un área pequeña.', lvl4: 'Nivel 4: Mega explosión que empuja enemigos hacia atrás.' },
-            // NUEVO PERSONAJE
             butterfly: { emoji: '🦋', type: 'butterfly', cooldown: 1.2, role: 'chain', dmg: 7, proj: '⚡', speed: 500, rangeCells: 4.5,
-                    name: 'Mariposa Eléctrica', desc: 'Dispara rayos que rebotan entre 2 enemigos cercanos.', lvl4: 'Nivel 4: El rayo rebota a 5 enemigos y los paraliza.' }
+                    name: 'Mariposa Eléctrica', desc: 'Dispara rayos que rebotan entre 2 enemigos.', lvl4: 'Nivel 4: El rayo rebota a 5 enemigos y los paraliza.' }
         };
 
         let selectedDeck = []; 
@@ -391,7 +625,7 @@
             document.getElementById('btn-start-game').disabled = selectedDeck.length !== 4;
         }
 
-        window.onload = initDeckBuilder;
+        initDeckBuilder();
 
         function showStartScreen() {
             document.getElementById('start-screen').style.display = 'flex';
@@ -415,7 +649,7 @@
                 units = []; blockers = []; enemies = []; projectiles = [];
 
                 state = {
-                    energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10,
+                    energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10, scoreSaved: false,
                     isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
                     timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
                     spawnTimer: 0, lastFrame: performance.now()
@@ -482,8 +716,8 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.45 - 90;
-            bridgeContainer.style.height = '55%';
+            gridTop = gameRect.height * 0.35 - 90; // Ajustado para el nuevo alto (65% puente, 35% sobra)
+            bridgeContainer.style.height = '65%';
             cellW = gameRect.width / COLS;
             cellH = bridgeContainer.clientHeight / ROWS;
             units.forEach(u => updateEntityPos(u));
@@ -498,8 +732,8 @@
 
         function updateGridVisuals() {
             const cells = gridEl.children;
-            for(let i=0; i<100; i++) {
-                if (i >= 100 - state.unlockedCount) cells[i].classList.add('unlocked');
+            for(let i=0; i<200; i++) { // 200 casillas totales
+                if (i >= 200 - state.unlockedCount) cells[i].classList.add('unlocked');
                 else cells[i].classList.remove('unlocked');
             }
         }
@@ -539,7 +773,7 @@
             for(let r=0; r<ROWS; r++) {
                 for(let c=0; c<COLS; c++) {
                     let cellIndex = r * COLS + c;
-                    if(cellIndex >= (100 - state.unlockedCount) && !getUnitAt(c, r)) {
+                    if(cellIndex >= (200 - state.unlockedCount) && !getUnitAt(c, r)) {
                         emptyCells.push({col: c, row: r});
                     }
                 }
@@ -629,12 +863,10 @@
                 const newRow = Math.floor(dropY / cellH);
                 const cellIndex = newRow * COLS + newCol;
 
-                if(newCol >= 0 && newCol < COLS && newRow >= 0 && newRow < ROWS && cellIndex >= (100 - state.unlockedCount)) {
+                if(newCol >= 0 && newCol < COLS && newRow >= 0 && newRow < ROWS && cellIndex >= (200 - state.unlockedCount)) {
                     const targetUnit = getUnitAt(newCol, newRow);
                     if(targetUnit && targetUnit !== unit) {
-                        // AHORA EL NIVEL MÁXIMO ES 4
                         if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 4) {
-                            
                             targetUnit.level++;
                             const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
                             const newData = ALL_UNITS[randomKey];
@@ -651,7 +883,7 @@
                             playChime('merge');
                             unit.el.remove(); units = units.filter(u => u.id !== unit.id);
                             
-                            state.unlockedCount = Math.min(100, state.unlockedCount + 1);
+                            state.unlockedCount = Math.min(200, state.unlockedCount + 1);
                             updateGridVisuals();
                         } else {
                             const oldCol = unit.col; const oldRow = unit.row;
@@ -687,6 +919,30 @@
                 document.getElementById('restart-btn').style.display = 'block';
                 pauseBtn.style.display = 'none';
             }
+        }
+
+        function restartGame() {
+            units.forEach(u => u.el.remove()); blockers.forEach(b => b.el.remove());
+            enemies.forEach(e => e.el.remove()); projectiles.forEach(p => p.el.remove());
+
+            units = []; blockers = []; enemies = []; projectiles = [];
+
+            state = {
+                energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 20, scoreSaved: false,
+                isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
+                timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
+                spawnTimer: 0, lastFrame: performance.now()
+            };
+
+            autoBtn.innerText = "🤖 Auto: OFF";
+            autoBtn.style.background = "#ffb74d";
+            gameArea.style.background = 'linear-gradient(to bottom, #1f1f3a 0%, #121220 100%)';
+
+            updateGridVisuals();
+            updateUI();
+            pauseBtn.style.display = 'block'; pauseBtn.innerText = "⏸️ Pausa";
+            document.getElementById('restart-btn').style.display = 'none';
+            document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)';
         }
 
         function createHealthBar(entityEl) {
@@ -783,7 +1039,6 @@
                     for (let i = 0; i < units.length && !merged; i++) {
                         for (let j = i + 1; j < units.length && !merged; j++) {
                             let u1 = units[i]; let u2 = units[j];
-                            // AHORA FUSIONA HASTA EL NIVEL 4
                             if (u1.baseData.type === u2.baseData.type && u1.level === u2.level && u1.level < 4) {
                                 u1.level++;
                                 const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
@@ -799,7 +1054,7 @@
                                 playChime('merge');
                                 u2.el.remove(); units.splice(j, 1);
                                 
-                                state.unlockedCount = Math.min(100, state.unlockedCount + 1);
+                                state.unlockedCount = Math.min(200, state.unlockedCount + 1);
                                 updateGridVisuals();
                                 merged = true;
                             }
@@ -828,7 +1083,6 @@
                 if (u.timer <= 0) {
                     const data = u.baseData;
                     if (data.role === 'econ') {
-                        // Nivel 4 otorga mucha agua
                         let amt = u.level === 4 ? 8 : (u.level === 3 ? 4 : (u.level === 2 ? 2 : 1)); 
                         state.energy += amt; updateUI();
                         spawnText(u.x, u.y - 20, `+${amt}💧`);
@@ -916,7 +1170,7 @@
                                 nearby.el.style.filter = 'drop-shadow(0 0 10px #ff9800)';
                                 setTimeout(() => { if(nearby.el) nearby.el.style.filter = nearby.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
                                 if (p.level === 4 && !nearby.isBoss) {
-                                    nearby.y -= 40; // Mega empuje
+                                    nearby.y -= 40; 
                                 } else if (p.level === 3 && !nearby.isBoss) {
                                     nearby.y -= 20; 
                                 }
@@ -926,7 +1180,7 @@
                     }
                     else if (p.role === 'slow') { 
                         hitEnemy.hp -= p.dmg;
-                        let slowPrc = p.level === 4 ? 0 : (p.level === 3 ? 0.2 : 0.6); // Lvl 4 congela por completo
+                        let slowPrc = p.level === 4 ? 0 : (p.level === 3 ? 0.2 : 0.6); 
                         hitEnemy.speedMultiplier = slowPrc; hitEnemy.slowTimer = p.level >= 3 ? 4.0 : 2.5;
                         hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #81d4fa)';
                         if (p.level >= 3) { 
@@ -939,7 +1193,6 @@
                         p.el.remove(); projectiles.splice(i, 1); continue;
                     }
                     else if (p.role === 'chain') {
-                        // LA MARIPOSA: Rayo Encadenado
                         playChime('hit');
                         hitEnemy.hp -= p.dmg;
                         hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #ffeb3b)';
@@ -949,7 +1202,6 @@
                         let currentTarget = hitEnemy;
                         let bounces = p.level === 4 ? 5 : (p.level === 3 ? 3 : 1);
 
-                        // Aturdir en nivel 4
                         if (p.level === 4) { hitEnemy.speedMultiplier = 0.1; hitEnemy.slowTimer = 1.5; }
 
                         for (let b = 0; b < bounces; b++) {
@@ -1049,6 +1301,13 @@
                     e.y += e.baseSpeed * e.speedMultiplier * dt; e.el.style.top = `${e.y}px`;
                     if (e.y > gameArea.clientHeight - 90) { 
                         state.pondHp = Math.max(0, state.pondHp - (e.isBoss ? 40 : 10)); updateUI(); 
+                        
+                        // --- GUARDAR SCORE AL PERDER ---
+                        if (state.pondHp <= 0 && !state.scoreSaved) {
+                            state.scoreSaved = true;
+                            saveScore();
+                        }
+
                         e.el.remove(); enemies.splice(i, 1);
                         document.getElementById('pond-zone').style.background = 'rgba(255, 138, 128, 0.8)';
                         setTimeout(() => document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)', 200);
@@ -1089,7 +1348,7 @@
                 el: el, x: unit.x, y: unit.y, role: unit.baseData.role,
                 dmg: unit.baseData.dmg * (unit.level === 4 ? 4.0 : (unit.level === 3 ? 2.5 : 1)), 
                 speed: unit.baseData.speed, level: unit.level, 
-                isPiercing: (unit.baseData.type === 'owl' && unit.level === 4), target: target, angle: angle, hitIds: new Set()
+                isPiercing: (unit.baseData.type === 'owl' && unit.level >= 4), target: target, angle: angle, hitIds: new Set()
             });
             
             unit.el.style.transform = 'translate(-50%, -50%) scale(0.9)';
