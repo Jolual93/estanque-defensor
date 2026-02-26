@@ -207,9 +207,7 @@
         const bgMusic = document.getElementById('bg-music');
 
         // --- SISTEMA DE MÚSICA ALEATORIA ---
-        // ⚠️ IMPORTANTE: Cuando subas el juego a GitHub/Vercel con tus MP3, 
-        // borra la lista de prueba de abajo y usa esta (quitando los símbolos /* y */):
-        /*
+        // Lista exacta de tus archivos locales:
         const musicPlaylist = [
             'Bosque Lofi (1).mp3', 
             'Bosque Lofi.mp3', 
@@ -220,28 +218,21 @@
             'Tarde de Osos.mp3', 
             'Tarde de Osos (1).mp3'
         ];
-        */
-
-        // Canciones lo-fi públicas de prueba para que puedas escuchar el reproductor AHORA:
-        const musicPlaylist = [
-            'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3', 
-            'https://cdn.pixabay.com/download/audio/2022/04/27/audio_3086eb29db.mp3'
-        ];
 
         function playRandomMusic() {
             if (musicPlaylist.length === 0) return;
             const randomIndex = Math.floor(Math.random() * musicPlaylist.length);
-            const trackFile = musicPlaylist[randomIndex];
+            // Usamos encodeURI para que los espacios y paréntesis no rompan la ruta
+            const trackFile = encodeURI(musicPlaylist[randomIndex]);
             
             bgMusic.src = trackFile;
             bgMusic.play().then(() => {
-                // Formatear el nombre (Si es un enlace de prueba, muestra "Pista", si es tuyo, muestra el nombre real)
-                let trackName = trackFile.includes('http') ? `Pista ${randomIndex + 1}` : trackFile.replace('.mp3', '').replace(' (1)', '');
+                let trackName = musicPlaylist[randomIndex].replace('.mp3', '').replace(' (1)', '');
                 musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("Asegúrate de tener los archivos .mp3 en la misma carpeta del juego.");
-                musicBtn.innerText = "🎵 Sin Archivos MP3";
+                console.log("Error al reproducir: ", e);
+                musicBtn.innerText = "🎵 Error de Archivo";
                 musicBtn.style.background = "#ffb74d";
             });
         }
