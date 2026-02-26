@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>El Estanque Defensor - Continuo y Aleatorio</title>
+    <title>El Estanque Defensor - Continuo, Aleatorio y Jefes</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -24,22 +24,23 @@
         .stats h2 { margin: 0; font-size: 1.2rem; color: #ffeb3b; }
         .stats p { margin: 5px 0 0 0; font-size: 1rem; color: #b2ebf2; }
 
-        .controls { display: flex; flex-direction: column; gap: 8px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
         .btn {
-            padding: 10px 15px; font-size: 0.95rem; border: none; border-radius: 20px;
+            padding: 8px 12px; font-size: 0.9rem; border: none; border-radius: 20px;
             cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: transform 0.1s;
+            transition: transform 0.1s; text-align: center;
         }
         .btn:active { transform: scale(0.95); }
-        .btn-summon { background: #81c784; color: #000; }
+        .btn-summon { background: #81c784; color: #000; grid-column: span 2; padding: 12px;}
         .btn-summon:disabled { background: #444; color: #888; }
         .btn-pause { background: #64b5f6; color: #000; }
         .btn-music { background: #ffb74d; color: #000; }
+        .btn-auto { background: #ffb74d; color: #000; }
 
         /* --- Panel de Información (Tooltip) --- */
         #info-panel {
-            position: absolute; top: 90px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.85); border: 1px solid #ffeb3b; border-radius: 10px;
             padding: 10px 20px; text-align: center; z-index: 1000; width: 90%; max-width: 400px;
             opacity: 0; pointer-events: none; transition: opacity 0.2s;
@@ -64,7 +65,7 @@
 
         /* --- El Puente 10x10 --- */
         #bridge-container {
-            position: absolute; bottom: 80px; left: 0; width: 100%; height: 55%;
+            position: absolute; bottom: 90px; left: 0; width: 100%; height: 55%;
             pointer-events: none;
         }
 
@@ -77,6 +78,7 @@
             border: 1px solid rgba(255, 255, 255, 0.02);
             background: transparent;
             transition: background 0.4s, border 0.4s;
+            pointer-events: none;
         }
 
         .grid-cell.unlocked {
@@ -87,7 +89,7 @@
 
         /* Estanque (Base a defender) */
         #pond-zone {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 80px;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 90px;
             background: linear-gradient(to bottom, #4fc3f7, #0288d1);
             display: flex; justify-content: center; align-items: center;
             font-size: 1.2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -97,16 +99,18 @@
         /* --- Entidades --- */
         .entity { position: absolute; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; }
         
-        .unit { font-size: clamp(16px, 5vw, 28px); cursor: grab; z-index: 50; border-radius: 50%; transition: filter 0.3s; }
-        .unit:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 100; }
+        .unit { font-size: clamp(16px, 5vw, 28px); cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
+        .unit:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 100; transition: none; }
 
         .level-indicator {
-            position: absolute; bottom: -8px; display: flex; gap: 1px; font-size: 8px;
+            position: absolute; bottom: -8px; display: flex; gap: 1px; font-size: 10px;
             pointer-events: none; text-shadow: 0 0 2px black;
         }
 
         /* Enemigos y Muros del Oso */
         .enemy { font-size: clamp(16px, 5vw, 26px); z-index: 60; filter: drop-shadow(0 2px 4px black); transition: filter 0.2s; }
+        .enemy.boss { font-size: clamp(40px, 12vw, 60px); filter: drop-shadow(0 0 15px #ff1744); z-index: 65; }
+        
         .blocker { font-size: clamp(14px, 4vw, 24px); z-index: 40; filter: drop-shadow(0 0 8px rgba(129, 199, 132, 0.8)); transition: opacity 0.2s; }
         
         /* Proyectiles generales */
@@ -143,27 +147,28 @@
         <h1 style="color: #81c784; font-size: 2.5rem; margin-bottom: 5px;">El Estanque Continuo</h1>
         <p style="color: #b2ebf2; font-size: 1rem; max-width: 400px; margin-bottom: 20px;">
             ¡Sobrevive y fusiona unidades!<br>
-            <i>Las fusiones generan una unidad nueva aleatoria.</i><br><br>
+            <i>¡Cuidado! Cada 10 oleadas aparece un Jefe Final 👹.</i><br><br>
             <b>🌳 Árbol:</b> Genera energía (Agua).<br>
             <b>🦉 Búho:</b> Disparo rápido de gran alcance.<br>
             <b>🐸 Rana:</b> Ralentiza enemigos.<br>
             <b>🐻 Oso:</b> Invoca guardianes con vida que pelean.<br>
-            <br><i style="color: #ffd54f;">Mantén pulsada una unidad para ver su rango y habilidades.</i>
+            <br><i style="color: #ffd54f;">Usa el Modo Auto para que el juego acomode tus defensas.</i>
         </p>
-        <button class="btn btn-summon" style="font-size: 1.2rem;" onclick="startGame()">Comenzar</button>
+        <button class="btn btn-summon" style="font-size: 1.2rem; margin-top: 10px;" onclick="startGame()">Comenzar</button>
     </div>
 
     <div id="top-ui">
         <div class="stats">
             <h2 id="energy-display">Gotas: 60 💧</h2>
-            <p id="threat-display">Amenaza Nivel: 1</p>
+            <p id="wave-display">Oleada: 1</p>
             <p id="hp-display">Salud Estanque: 100%</p>
         </div>
         <div class="controls">
             <button id="summon-btn" class="btn btn-summon" onclick="summonUnit()">Invocar (15💧)</button>
             <button id="pause-btn" class="btn btn-pause" onclick="togglePause()">⏸️ Pausa</button>
-            <button id="music-btn" class="btn btn-music" onclick="toggleMusic()">🎵 Música: OFF</button>
-            <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none;" onclick="restartGame()">Reiniciar</button>
+            <button id="auto-btn" class="btn btn-auto" onclick="toggleAuto()">🤖 Auto: OFF</button>
+            <button id="music-btn" class="btn btn-music" style="grid-column: span 2;" onclick="toggleMusic()">🎵 Música: OFF</button>
+            <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none; grid-column: span 2;" onclick="restartGame()">Reiniciar Partida</button>
         </div>
     </div>
 
@@ -181,25 +186,72 @@
     </div>
 
     <!-- Reproductor de Audio Oculto -->
-    <audio id="bg-music" loop></audio>
+    <audio id="bg-music"></audio>
 
     <script>
+        // Declaración global de funciones esenciales
+        let fireProjectile;
+        let createBlocker;
+
         const gameArea = document.getElementById('game-area');
         const gridEl = document.getElementById('grid');
         const bridgeContainer = document.getElementById('bridge-container');
         const rangeIndicator = document.getElementById('range-indicator');
         const energyDisp = document.getElementById('energy-display');
-        const threatDisp = document.getElementById('threat-display');
+        const waveDisp = document.getElementById('wave-display');
         const hpDisp = document.getElementById('hp-display');
         const summonBtn = document.getElementById('summon-btn');
         const pauseBtn = document.getElementById('pause-btn');
+        const autoBtn = document.getElementById('auto-btn');
         const musicBtn = document.getElementById('music-btn');
         const bgMusic = document.getElementById('bg-music');
 
-        // Playlist de Música Instrumental
-        const musicPlaylist = ['musica1.mp3', 'musica2.mp3', 'musica3.mp3', 'musica4.mp3'];
-        let currentTrack = 0;
+        // --- SISTEMA DE MÚSICA ALEATORIA ---
+        const musicPlaylist = [
+            'Bosque Lofi (1).mp3', 
+            'Bosque Lofi.mp3', 
+            'Cielo Nocturno (1).mp3', 
+            'Cielo Nocturno.mp3', 
+            'Jardín Acuático (1).mp3', 
+            'Jardín Acuático.mp3', 
+            'Tarde de Osos.mp3', 
+            'Tarde de Osos (1).mp3'
+        ];
 
+        function playRandomMusic() {
+            if (musicPlaylist.length === 0) return;
+            const randomIndex = Math.floor(Math.random() * musicPlaylist.length);
+            const trackFile = musicPlaylist[randomIndex];
+            
+            bgMusic.src = trackFile;
+            bgMusic.play().then(() => {
+                let trackName = trackFile.replace('.mp3', '').replace(' (1)', '');
+                musicBtn.innerText = `🎵 ${trackName}`;
+                musicBtn.style.background = "#81c784";
+            }).catch(e => {
+                console.log("Asegúrate de tener los archivos .mp3 en la misma carpeta del juego.");
+                musicBtn.innerText = "🎵 Sin Archivos MP3";
+                musicBtn.style.background = "#ffb74d";
+            });
+        }
+
+        function toggleMusic() {
+            if (bgMusic.paused) {
+                if (!bgMusic.src || bgMusic.src === "" || bgMusic.src === window.location.href) {
+                    playRandomMusic();
+                } else {
+                    bgMusic.play();
+                    musicBtn.style.background = "#81c784";
+                }
+            } else {
+                bgMusic.pause();
+                musicBtn.innerText = "🎵 Música: OFF";
+                musicBtn.style.background = "#ffb74d";
+            }
+        }
+        bgMusic.addEventListener('ended', playRandomMusic);
+
+        // --- SISTEMA PRINCIPAL ---
         const COLS = 10;
         const ROWS = 10;
         let cellW = 0, cellH = 0, gridTop = 0;
@@ -207,8 +259,8 @@
         let state = {
             energy: 60, pondHp: 100, summonCost: 15,
             unlockedCount: 10,
-            isRunning: false, isPaused: false,
-            timeElapsed: 0, threatLevel: 1,
+            isRunning: false, isPaused: false, autoMode: false, autoTimer: 0,
+            timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
             spawnTimer: 0, lastFrame: performance.now()
         };
 
@@ -224,7 +276,7 @@
         };
 
         let units = [];
-        let blockers = []; // Guardianes invocados por el oso
+        let blockers = [];
         let enemies = [];
         let projectiles = [];
         let audioCtx;
@@ -249,30 +301,12 @@
             if (!state.isPaused) state.lastFrame = performance.now(); 
         }
 
-        function toggleMusic() {
-            if (bgMusic.paused) {
-                bgMusic.src = musicPlaylist[currentTrack];
-                bgMusic.play().then(() => {
-                    musicBtn.innerText = `🎵 Música: Pista ${currentTrack + 1}`;
-                    musicBtn.style.background = "#81c784";
-                }).catch(e => {
-                    console.log("Coloca archivos musica1.mp3 a musica4.mp3 en la misma carpeta.");
-                    musicBtn.innerText = "🎵 Sin Archivo";
-                });
-            } else {
-                bgMusic.pause();
-                musicBtn.innerText = "🎵 Música: OFF";
-                musicBtn.style.background = "#ffb74d";
-            }
+        function toggleAuto() {
+            if (!state.isRunning || state.pondHp <= 0) return;
+            state.autoMode = !state.autoMode;
+            autoBtn.innerText = state.autoMode ? "🤖 Auto: ON" : "🤖 Auto: OFF";
+            autoBtn.style.background = state.autoMode ? "#81c784" : "#ffb74d";
         }
-
-        // Cambiar a la siguiente canción al terminar
-        bgMusic.addEventListener('ended', () => {
-            currentTrack = (currentTrack + 1) % musicPlaylist.length;
-            bgMusic.src = musicPlaylist[currentTrack];
-            bgMusic.play();
-            musicBtn.innerText = `🎵 Música: Pista ${currentTrack + 1}`;
-        });
 
         function drawLanes() {
             for(let i=1; i<COLS; i++) {
@@ -296,7 +330,7 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.45 - 80;
+            gridTop = gameRect.height * 0.45 - 90;
             bridgeContainer.style.height = '55%';
             cellW = gameRect.width / COLS;
             cellH = bridgeContainer.clientHeight / ROWS;
@@ -343,7 +377,7 @@
         function getUnitAt(col, row) { return units.find(u => u.col === col && u.row === row); }
 
         function summonUnit() {
-            if (!state.isRunning || state.isPaused || state.pondHp <= 0) return; // Evita invocar en pausa o al perder
+            if (!state.isRunning || state.isPaused || state.pondHp <= 0) return;
             if (state.energy < state.summonCost) return;
             
             let emptyCells = [];
@@ -399,10 +433,10 @@
 
             let offsetX, offsetY;
             el.addEventListener('pointerdown', e => {
+                if (state.autoMode || state.isPaused) return; // Bloquear arrastre en modo auto o pausa
                 unit.isDragging = true; el.setPointerCapture(e.pointerId);
                 const rect = el.getBoundingClientRect();
                 offsetX = e.clientX - (rect.left + rect.width / 2); offsetY = e.clientY - (rect.top + rect.height / 2);
-                
                 showInfo();
 
                 if (unit.baseData.rangeCells > 0) {
@@ -443,7 +477,6 @@
                     const targetUnit = getUnitAt(newCol, newRow);
                     if(targetUnit && targetUnit !== unit) {
                         if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 3) {
-                            
                             // FUSIÓN ALEATORIA
                             targetUnit.level++;
                             const keys = Object.keys(UNIT_DATA);
@@ -465,13 +498,10 @@
                             state.unlockedCount = Math.min(100, state.unlockedCount + 1);
                             updateGridVisuals();
                         } else {
-                            // INTERCAMBIO 
-                            const oldCol = unit.col;
-                            const oldRow = unit.row;
-                            unit.col = newCol; 
-                            unit.row = newRow;
-                            targetUnit.col = oldCol; 
-                            targetUnit.row = oldRow;
+                            // INTERCAMBIO SEGURO
+                            const oldCol = unit.col; const oldRow = unit.row;
+                            unit.col = newCol; unit.row = newRow;
+                            targetUnit.col = oldCol; targetUnit.row = oldRow;
                             updateEntityPos(targetUnit);
                         }
                     } else {
@@ -493,7 +523,7 @@
 
         function updateUI() {
             energyDisp.innerText = `Gotas: ${Math.floor(state.energy)} 💧`;
-            threatDisp.innerText = `Amenaza Nivel: ${state.threatLevel}`;
+            waveDisp.innerText = `Oleada: ${state.wave}`;
             hpDisp.innerText = `Salud Estanque: ${Math.floor(state.pondHp)}%`;
             summonBtn.disabled = state.energy < state.summonCost;
             
@@ -513,9 +543,13 @@
 
             state = {
                 energy: 60, pondHp: 100, summonCost: 15, unlockedCount: 10,
-                isRunning: true, isPaused: false, timeElapsed: 0, threatLevel: 1,
+                isRunning: true, isPaused: false, autoMode: false, autoTimer: 0,
+                timeElapsed: 0, wave: 1, bossSpawnedForWave: false,
                 spawnTimer: 0, lastFrame: performance.now()
             };
+
+            autoBtn.innerText = "🤖 Auto: OFF";
+            autoBtn.style.background = "#ffb74d";
 
             updateGridVisuals();
             updateUI();
@@ -535,9 +569,27 @@
 
             enemies.push({
                 id: Math.random().toString(), el: el, col: lane, x: x, y: y,
-                hp: 30 + (state.threatLevel * 10), maxHp: 30 + (state.threatLevel * 10),
-                baseSpeed: 15 + (state.threatLevel * 0.8), speedMultiplier: 1.0, slowTimer: 0, attackTimer: 0
+                hp: 30 + (state.wave * 10), maxHp: 30 + (state.wave * 10),
+                baseSpeed: 15 + (state.wave * 0.5), speedMultiplier: 1.0, slowTimer: 0, attackTimer: 0, isBoss: false
             });
+        }
+
+        function spawnBoss() {
+            const lane = Math.floor(COLS / 2); // Centro
+            const el = document.createElement('div');
+            el.className = 'entity enemy boss'; el.innerText = '👹';
+            
+            const x = lane * cellW + cellW / 2; const y = -40;
+            el.style.left = `${x}px`; el.style.top = `${y}px`;
+            gameArea.appendChild(el);
+
+            enemies.push({
+                id: Math.random().toString(), el: el, col: lane, x: x, y: y,
+                hp: 500 * state.wave, maxHp: 500 * state.wave, // Gigante
+                baseSpeed: 8 + (state.wave * 0.2), speedMultiplier: 1.0, slowTimer: 0, attackTimer: 0, isBoss: true
+            });
+            spawnText(gameArea.clientWidth/2, 150, "¡JEFE FINAL!", "#ff1744");
+            playChime('hit'); playChime('hit');
         }
 
         function gameLoop(currentTime) {
@@ -550,19 +602,80 @@
             const dt = (currentTime - state.lastFrame) / 1000;
             state.lastFrame = currentTime;
 
-            // 1. Progresión Continua
+            // 1. Progresión Continua y Oleadas
             state.timeElapsed += dt;
-            const newThreat = 1 + Math.floor(state.timeElapsed / 25); 
-            if (newThreat > state.threatLevel) {
-                state.threatLevel = newThreat;
+            const newWave = 1 + Math.floor(state.timeElapsed / 20); // Sube oleada cada 20s
+            if (newWave > state.wave) {
+                state.wave = newWave;
+                state.bossSpawnedForWave = false;
                 updateUI();
-                spawnText(gameArea.clientWidth/2, 100, "¡La amenaza crece!", "#ce93d8");
+                spawnText(gameArea.clientWidth/2, 100, `¡Oleada ${state.wave}!`, "#ce93d8");
             }
 
+            // Spawner
             state.spawnTimer -= dt;
-            if (state.spawnTimer <= 0) { 
-                spawnEnemy(); 
-                state.spawnTimer = Math.max(0.8, 3.0 - (state.threatLevel * 0.15)); 
+            if (state.spawnTimer <= 0) {
+                if (state.wave % 10 === 0 && !state.bossSpawnedForWave) {
+                    spawnBoss();
+                    state.bossSpawnedForWave = true;
+                    state.spawnTimer = 6.0; // Pausa a los enemigos normales por un momento
+                } else {
+                    spawnEnemy(); 
+                    state.spawnTimer = Math.max(0.6, 2.5 - (state.wave * 0.1)); 
+                }
+            }
+
+            // --- LÓGICA MODO AUTOMÁTICO ---
+            if (state.autoMode) {
+                state.autoTimer -= dt;
+                if (state.autoTimer <= 0) {
+                    state.autoTimer = 1.0; // Ejecutar acciones cada segundo
+                    
+                    // a) Intentar Fusionar
+                    let merged = false;
+                    for (let i = 0; i < units.length && !merged; i++) {
+                        for (let j = i + 1; j < units.length && !merged; j++) {
+                            let u1 = units[i]; let u2 = units[j];
+                            if (u1.baseData.type === u2.baseData.type && u1.level === u2.level && u1.level < 3) {
+                                u1.level++;
+                                const keys = Object.keys(UNIT_DATA);
+                                const newData = UNIT_DATA[keys[Math.floor(Math.random() * keys.length)]];
+                                
+                                u1.baseData = newData; u1.emojiSpan.textContent = newData.emoji;
+                                u1.el.dataset.level = u1.level; u1.lvlInd.innerText = '⭐'.repeat(u1.level);
+                                
+                                u1.el.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                                setTimeout(() => { if(u1.el) u1.el.style.transform = 'translate(-50%, -50%) scale(1)'; }, 200);
+                                
+                                spawnText(u1.x, u1.y - 20, "✨ Auto-Fusión", "#81c784");
+                                playChime('merge');
+                                u2.el.remove(); units.splice(j, 1);
+                                
+                                state.unlockedCount = Math.min(100, state.unlockedCount + 1);
+                                updateGridVisuals();
+                                merged = true;
+                            }
+                        }
+                    }
+
+                    // b) Acomodar Estratégicamente (Solo si no hubo fusión para no saturar)
+                    if (!merged && units.length > 1) {
+                        const roleScore = { 'summoner': 1, 'slow': 2, 'dps': 3, 'econ': 4 };
+                        let sortedUnits = [...units].sort((a, b) => roleScore[a.baseData.role] - roleScore[b.baseData.role]);
+                        
+                        // Obtener coordenadas de celdas actualmente ocupadas y ordenarlas de arriba abajo
+                        let occupiedCells = units.map(u => ({col: u.col, row: u.row}));
+                        occupiedCells.sort((a, b) => a.row === b.row ? a.col - b.col : a.row - b.row);
+
+                        // Reasignar posiciones: Osos (1) van a las celdas más altas, Árboles (4) a las más bajas
+                        for (let i = 0; i < sortedUnits.length; i++) {
+                            sortedUnits[i].col = occupiedCells[i].col;
+                            sortedUnits[i].row = occupiedCells[i].row;
+                            // Transición suave activada por CSS
+                            updateEntityPos(sortedUnits[i]);
+                        }
+                    }
+                }
             }
 
             // 2. Lógica de Unidades en el Puente
@@ -571,34 +684,27 @@
                 u.timer -= dt;
                 if (u.timer <= 0) {
                     const data = u.baseData;
-                    
                     if (data.role === 'econ') {
-                        // ÁRBOLES: Generan menos agua (Nerfeado a la mitad)
                         let amt = u.level === 3 ? 4 : (u.level === 2 ? 2 : 1); 
                         state.energy += amt; updateUI();
                         spawnText(u.x, u.y - 20, `+${amt}💧`);
                         u.timer = data.cooldown; 
                     } 
                     else if (data.role === 'summoner') {
-                        // OSOS: Invocan Guardianes Físicos en el campo
                         u.timer = data.cooldown / (u.level === 3 ? 1.5 : 1);
-                        const hp = u.level === 3 ? 350 : (u.level * 100);
-                        const dmg = u.level === 3 ? 20 : 8; // Daño que hacen las huellas al golpear
+                        const hp = u.level === 3 ? 200 : (u.level * 50); // HP NERFEADO PARA OSOS
+                        const dmg = u.level === 3 ? 20 : 8; 
                         const emoji = u.level === 3 ? '🐻‍❄️' : '🐾';
-                        
-                        // Generar el guardián un poco arriba del oso
                         createBlocker(u.col, u.y - 40, hp, dmg, emoji, u.level === 3);
                     }
                     else if (data.role === 'dps' || data.role === 'slow') {
                         const rangePx = data.rangeCells * cellW;
                         let target = null;
                         let minDist = rangePx;
-
                         for (let e of enemies) {
                             let dist = Math.hypot(e.x - u.x, e.y - u.y);
                             if (dist < minDist) { minDist = dist; target = e; }
                         }
-
                         if (target) {
                             fireProjectile(u, target);
                             u.timer = data.cooldown / (1 + (u.level - 1) * 0.2); 
@@ -610,27 +716,25 @@
             // 3. Proyectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const p = projectiles[i];
-                
                 if (!p.isPiercing && p.target && enemies.includes(p.target)) {
                     p.angle = Math.atan2(p.target.y - p.y, p.target.x - p.x);
                 }
-
-                p.x += Math.cos(p.angle) * p.speed * dt;
-                p.y += Math.sin(p.angle) * p.speed * dt;
+                p.x += Math.cos(p.angle) * p.speed * dt; p.y += Math.sin(p.angle) * p.speed * dt;
                 p.el.style.left = `${p.x}px`; p.el.style.top = `${p.y}px`;
 
                 let hitEnemy = null;
                 for (let e of enemies) {
-                    if (Math.hypot(e.x - p.x, e.y - p.y) < 25) { hitEnemy = e; break; }
+                    // Cajas de colisión más grandes para el jefe
+                    let colDist = e.isBoss ? 50 : 25;
+                    if (Math.hypot(e.x - p.x, e.y - p.y) < colDist) { hitEnemy = e; break; }
                 }
                 
                 if (hitEnemy) {
                     if (p.role === 'dps') { 
                         if(!p.isPiercing || (p.isPiercing && !p.hitIds.has(hitEnemy.id))) {
-                            hitEnemy.hp -= p.dmg;
-                            playChime('hit'); hitEnemy.el.style.filter = 'drop-shadow(0 0 10px red)';
-                            setTimeout(() => { if(hitEnemy.el) hitEnemy.el.style.filter = 'drop-shadow(0 2px 4px black)'; }, 100);
-                            
+                            hitEnemy.hp -= p.dmg; playChime('hit'); 
+                            hitEnemy.el.style.filter = 'drop-shadow(0 0 10px red)';
+                            setTimeout(() => { if(hitEnemy.el) hitEnemy.el.style.filter = hitEnemy.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
                             if (p.isPiercing) p.hitIds.add(hitEnemy.id);
                             else { p.el.remove(); projectiles.splice(i, 1); continue; }
                         }
@@ -638,10 +742,8 @@
                     else if (p.role === 'slow') { 
                         hitEnemy.hp -= p.dmg;
                         let slowPrc = p.level === 3 ? 0.2 : 0.6; 
-                        hitEnemy.speedMultiplier = slowPrc;
-                        hitEnemy.slowTimer = p.level === 3 ? 4.0 : 2.5;
+                        hitEnemy.speedMultiplier = slowPrc; hitEnemy.slowTimer = p.level === 3 ? 4.0 : 2.5;
                         hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #81d4fa)';
-                        
                         if (p.level === 3) { 
                             enemies.forEach(nearby => {
                                 if(Math.hypot(nearby.x - hitEnemy.x, nearby.y - hitEnemy.y) < cellW * 2) {
@@ -656,80 +758,51 @@
                 }
             }
 
-            // 4. Guardianes del Oso (Móviles con Vida)
+            // 4. Guardianes del Oso (Se debilitan con el tiempo para no ser inmortales)
             for (let i = blockers.length - 1; i >= 0; i--) {
                 const b = blockers[i];
+                b.hp -= 2 * dt; // Decadencia automática de vida
                 
-                // Buscar enemigo en rango cuerpo a cuerpo
-                let engagedEnemy = enemies.find(e => Math.hypot(e.x - b.x, e.y - b.y) < 35);
+                let engagedEnemy = enemies.find(e => Math.hypot(e.x - b.x, e.y - b.y) < (e.isBoss ? 50 : 35));
 
                 if (engagedEnemy) {
-                    // Si está pegado, se detiene a pegarle
                     b.attackTimer -= dt;
                     if (b.attackTimer <= 0) {
                         engagedEnemy.hp -= b.dmg;
                         playChime('hit'); spawnText(engagedEnemy.x, engagedEnemy.y, "💢", "#ffb74d");
                         b.attackTimer = 1.0;
                     }
-                } else if (enemies.length > 0) {
-                    // Inteligencia del Oso: Buscar al enemigo más cercano y perseguirlo libremente
-                    let closestEnemy = null; 
-                    let minDist = Infinity;
-                    for(let e of enemies) {
-                        let dist = Math.hypot(e.x - b.x, e.y - b.y);
-                        if(dist < minDist) { minDist = dist; closestEnemy = e; }
-                    }
-                    if (closestEnemy) {
-                        const angle = Math.atan2(closestEnemy.y - b.y, closestEnemy.x - b.x);
-                        b.x += Math.cos(angle) * b.speed * dt; 
-                        b.y += Math.sin(angle) * b.speed * dt;
-                        b.el.style.left = `${b.x}px`; 
-                        b.el.style.top = `${b.y}px`;
-                    }
                 } else {
-                    // Si no hay enemigos vivos, avanza valientemente hacia arriba
-                    b.y -= b.speed * dt;
-                    b.el.style.top = `${b.y}px`;
+                    b.y -= b.speed * dt; b.el.style.top = `${b.y}px`;
                 }
 
-                // Desaparecer si salen del mapa o su vida llega a 0
                 if (b.y < -50 || b.hp <= 0) {
-                    b.el.remove();
-                    blockers.splice(i, 1);
+                    b.el.remove(); blockers.splice(i, 1);
                 }
             }
 
-            // 5. Enemigos bajando (y atacando huellas)
+            // 5. Enemigos bajando
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const e = enemies[i];
                 if (e.slowTimer > 0) { 
                     e.slowTimer -= dt; 
-                    if(e.slowTimer <= 0) { e.speedMultiplier = 1.0; e.el.style.filter = 'drop-shadow(0 2px 4px black)'; }
+                    if(e.slowTimer <= 0) { e.speedMultiplier = 1.0; e.el.style.filter = e.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }
                 }
                 
-                // Chequear si se topó con un guardián (Huella)
-                let blockingMe = blockers.find(b => Math.hypot(b.x - e.x, b.y - e.y) < 35);
-                
+                let blockingMe = blockers.find(b => Math.hypot(b.x - e.x, b.y - e.y) < (e.isBoss ? 50 : 35));
                 if (blockingMe) {
-                    // Detenerse y atacar a la huella
                     e.attackTimer -= dt;
                     if (e.attackTimer <= 0) {
-                        blockingMe.hp -= 20; // Daño que hacen las sombras a la huella
+                        blockingMe.hp -= e.isBoss ? 50 : 20; // Jefe pega durísimo
                         blockingMe.el.style.opacity = '0.5'; 
                         setTimeout(() => { if(blockingMe.el) blockingMe.el.style.opacity = '1'; }, 100);
-                        
-                        // Nivel 3 Oso tiene espinas
                         if(blockingMe.isAncestral) { e.hp -= 10; spawnText(e.x, e.y, "¡Espinas!", "#ffb74d"); } 
-                        
-                        e.attackTimer = 1.0;
+                        e.attackTimer = e.isBoss ? 2.0 : 1.0; // Jefe pega lento pero fuerte
                     }
                 } else {
-                    // Seguir bajando
-                    e.y += e.baseSpeed * e.speedMultiplier * dt;
-                    e.el.style.top = `${e.y}px`;
-
-                    if (e.y > gameArea.clientHeight - 80) {
-                        state.pondHp = Math.max(0, state.pondHp - 10); updateUI();
+                    e.y += e.baseSpeed * e.speedMultiplier * dt; e.el.style.top = `${e.y}px`;
+                    if (e.y > gameArea.clientHeight - 90) { 
+                        state.pondHp = Math.max(0, state.pondHp - (e.isBoss ? 40 : 10)); updateUI(); // Jefe quita mucha vida
                         e.el.remove(); enemies.splice(i, 1);
                         document.getElementById('pond-zone').style.background = 'rgba(255, 138, 128, 0.8)';
                         setTimeout(() => document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)', 200);
@@ -738,59 +811,47 @@
                 }
 
                 if (e && e.hp <= 0) {
-                    state.energy += 5; updateUI(); spawnText(e.x, e.y, "+5💧");
+                    let drops = e.isBoss ? 50 : 5; // Jefe da mucha agua
+                    state.energy += drops; updateUI(); spawnText(e.x, e.y, `+${drops}💧`, e.isBoss ? "#ff1744" : "#ffeb3b");
                     e.el.style.transform = 'scale(0)'; e.el.style.opacity = '0';
                     const elRef = e.el; setTimeout(() => elRef.remove(), 200);
                     enemies.splice(i, 1);
                 }
             }
-
             requestAnimationFrame(gameLoop);
         }
 
-        // --- FUNCION RESTAURADA PARA ARREGLAR ERROR ReferenceError: fireProjectile is not defined ---
-        function fireProjectile(unit, target) {
+        // --- FUNCIONES PROTEGIDAS Y DEFINIDAS ---
+        fireProjectile = function(unit, target) {
+            if (!unit || !unit.baseData || !unit.el) return; // Anti-Errores
             const el = document.createElement('div');
-            el.className = 'entity projectile'; 
-            el.innerText = unit.baseData.proj;
-            el.style.left = `${unit.x}px`; 
-            el.style.top = `${unit.y}px`;
+            el.className = 'entity projectile'; el.innerText = unit.baseData.proj;
+            el.style.left = `${unit.x}px`; el.style.top = `${unit.y}px`;
             
             let isPiercing = (unit.baseData.type === 'owl' && unit.level === 3);
-            if(isPiercing) { 
-                el.style.filter = 'drop-shadow(0 0 5px yellow)'; 
-                el.style.fontSize = '25px'; 
-            }
+            if(isPiercing) { el.style.filter = 'drop-shadow(0 0 5px yellow)'; el.style.fontSize = '25px'; }
             gameArea.appendChild(el);
 
             const angle = Math.atan2(target.y - unit.y, target.x - unit.x);
             projectiles.push({
                 el: el, x: unit.x, y: unit.y, role: unit.baseData.role,
                 dmg: unit.baseData.dmg * (unit.level === 3 ? 2.5 : 1), 
-                speed: unit.baseData.speed,
-                level: unit.level, 
-                isPiercing: isPiercing, 
-                target: target, 
-                angle: angle, 
-                hitIds: new Set()
+                speed: unit.baseData.speed, level: unit.level, 
+                isPiercing: isPiercing, target: target, angle: angle, hitIds: new Set()
             });
             
             unit.el.style.transform = 'translate(-50%, -50%) scale(0.9)';
             setTimeout(() => { if(unit.el) unit.el.style.transform = 'translate(-50%, -50%) scale(1)'; }, 100);
-        }
+        };
 
-        function createBlocker(col, y, hp, dmg, emoji, isAncestral) {
+        createBlocker = function(col, y, hp, dmg, emoji, isAncestral) {
             const el = document.createElement('div');
             el.className = 'entity blocker'; el.innerText = emoji;
             const x = col * cellW + cellW / 2;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
-            blockers.push({ 
-                id: Math.random().toString(), el: el, col: col, x: x, y: y, 
-                hp: hp, maxHp: hp, dmg: dmg, isAncestral: isAncestral, speed: 40, attackTimer: 0 
-            });
-        }
-
+            blockers.push({ id: Math.random().toString(), el: el, col: col, x: x, y: y, hp: hp, maxHp: hp, dmg: dmg, isAncestral: isAncestral, speed: 40, attackTimer: 0 });
+        };
     </script>
 </body>
 </html>
