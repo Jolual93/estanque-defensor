@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>El Estanque Defensor - Mazo Estratégico</title>
+    <title>El Estanque Defensor - Mazo Estratégico y Nivel 4</title>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
         
@@ -48,7 +48,7 @@
         }
         #info-panel h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #81c784; }
         #info-panel p { margin: 0; font-size: 0.9rem; color: #e0e0e0; line-height: 1.4; }
-        #info-panel .lvl3-desc { color: #ffd54f; font-weight: bold; margin-top: 5px; font-size: 0.85rem; }
+        #info-panel .lvl4-desc { color: #ffeb3b; font-weight: bold; margin-top: 5px; font-size: 0.85rem; text-shadow: 0 0 5px rgba(255, 235, 59, 0.5); }
 
         /* --- Área de Juego Principal --- */
         #game-area {
@@ -104,7 +104,7 @@
 
         .level-indicator {
             position: absolute; bottom: -12px; display: flex; gap: 1px; font-size: 10px;
-            pointer-events: none; text-shadow: 0 0 2px black;
+            pointer-events: none; text-shadow: 0 0 2px black; letter-spacing: -2px;
         }
 
         /* --- Barras de Vida --- */
@@ -127,8 +127,15 @@
         /* Proyectiles generales */
         .projectile { font-size: clamp(12px, 3vw, 18px); z-index: 80; pointer-events: none; filter: drop-shadow(0 0 4px white); }
 
-        .unit[data-level="3"] { filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)); animation: pulseUnit 2s infinite alternate ease-in-out; }
-        @keyframes pulseUnit { 0% { transform: translate(-50%, -50%) scale(1); } 100% { transform: translate(-50%, -50%) scale(1.1); } }
+        /* Efectos Visuales por Niveles */
+        .unit[data-level="3"] { filter: drop-shadow(0 0 8px rgba(129, 199, 132, 0.8)); }
+        
+        /* ¡NUEVO! Efecto Nivel 4 (Máximo Poder) */
+        .unit[data-level="4"] { 
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1)); 
+            animation: pulseUnitMax 1.5s infinite alternate ease-in-out; 
+        }
+        @keyframes pulseUnitMax { 0% { transform: translate(-50%, -50%) scale(1); filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)); } 100% { transform: translate(-50%, -50%) scale(1.15); filter: drop-shadow(0 0 20px rgba(255,255,255,1)); } }
 
         /* Indicador de Rango al arrastrar */
         #range-indicator {
@@ -168,6 +175,13 @@
             content: '✅'; position: absolute; top: -5px; right: -5px; font-size: 16px;
         }
 
+        /* Visualizador de Habilidades en Start Screen */
+        #deck-preview-box {
+            min-height: 85px; width: 100%; max-width: 400px; background: rgba(0,0,0,0.5); 
+            border-radius: 10px; padding: 10px; margin-bottom: 15px; color: #fff;
+            display: flex; flex-direction: column; justify-content: center; border: 1px solid rgba(255,255,255,0.1);
+        }
+
         #deck-status { color: #ffd54f; font-weight: bold; margin-bottom: 20px; font-size: 1.1rem; }
         
         #btn-start-game:disabled { background: #555; color: #999; cursor: not-allowed; }
@@ -179,13 +193,20 @@
     <div id="start-screen">
         <h1 style="color: #81c784; font-size: 2.2rem; margin-bottom: 5px;">El Estanque Continuo</h1>
         <p style="color: #b2ebf2; font-size: 0.95rem; max-width: 400px; margin-bottom: 15px;">
-            Arma tu equipo. <b>Elige solo 4 guardianes</b> para esta partida.
+            ¡Ahora con niveles hasta <b>4 ESTRELLAS</b> ⭐⭐⭐⭐!<br>
+            Elige tus <b>4 guardianes</b> favoritos para esta partida.
         </p>
         
         <!-- Sistema de Mazo (Deck Builder) -->
         <div class="deck-grid" id="deck-grid">
             <!-- Rellenado por JavaScript -->
         </div>
+
+        <!-- Cajita Descriptiva para explicar habilidades -->
+        <div id="deck-preview-box">
+            <em style="color: #b2ebf2; font-size: 0.9rem;">Toca un guardián para ver sus habilidades.</em>
+        </div>
+
         <div id="deck-status">0 / 4 Seleccionados</div>
 
         <button id="btn-start-game" class="btn btn-summon" style="font-size: 1.2rem; padding: 15px 40px;" disabled onclick="startGame()">Comenzar</button>
@@ -206,11 +227,11 @@
         </div>
     </div>
 
-    <!-- Panel Info -->
+    <!-- Panel Info (Durante el Juego) -->
     <div id="info-panel">
         <h3 id="info-title">Unidad</h3>
         <p id="info-desc">Descripción</p>
-        <div id="info-lvl3" class="lvl3-desc">Nivel 3: Poder</div>
+        <div id="info-lvl4" class="lvl4-desc">Nivel 4: Poder</div>
     </div>
 
     <div id="game-area">
@@ -219,8 +240,7 @@
         <div id="pond-zone">🌸 Estanque Sagrado 🌸</div>
     </div>
 
-    <!-- Reproductor de Audio Oculto -->
-    <audio id="bg-music"></audio>
+    <audio id="bg-music" playsinline preload="auto"></audio>
 
     <script>
         let fireProjectile;
@@ -239,7 +259,6 @@
         const musicBtn = document.getElementById('music-btn');
         const bgMusic = document.getElementById('bg-music');
 
-        // --- SISTEMA DE MÚSICA ---
         let isMusicEnabled = false; 
 
         const musicPlaylist = [
@@ -260,8 +279,8 @@
                 musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("No se pudo cargar la canción:", trackFile);
-                musicBtn.innerText = "🎵 Archivo no encontrado";
+                console.log("No se pudo cargar la canción en móvil:", trackFile);
+                musicBtn.innerText = "🎵 Error de Archivo";
                 musicBtn.style.background = "#ffb74d";
                 isMusicEnabled = false;
             });
@@ -284,7 +303,6 @@
         }
         bgMusic.addEventListener('ended', playRandomMusic);
 
-        // --- SISTEMA PRINCIPAL Y DE MAZO ---
         const COLS = 10;
         const ROWS = 10;
         let cellW = 0, cellH = 0, gridTop = 0;
@@ -297,30 +315,45 @@
             spawnTimer: 0, lastFrame: performance.now()
         };
 
-        // BASE DE DATOS DE TODAS LAS UNIDADES (Ahora son 6)
+        // BASE DE DATOS ACTUALIZADA: Nivel 4 es ahora el máximo
         const ALL_UNITS = {
             tree: { emoji: '🌳', type: 'tree', cooldown: 12.0, role: 'econ', rangeCells: 0, dmg: 0, speed: 0, proj: '',
-                    name: 'Árbol Sagrado', desc: 'Genera gotas de agua muy lentamente.', lvl3: 'Nivel 3: Genera 4 gotas por ciclo.' },
+                    name: 'Árbol Sagrado', desc: 'Genera gotas de agua poco a poco.', lvl4: 'Nivel 4: Genera muchísima agua por ciclo.' },
             owl:  { emoji: '🦉', type: 'owl',  cooldown: 0.9, role: 'dps', dmg: 10, proj: '✨', speed: 450, rangeCells: 5.5,
-                    name: 'Búho Vigía', desc: 'Dispara estrellas rápidamente a gran distancia.', lvl3: 'Nivel 3: Disparo perforador que atraviesa enemigos.' },
+                    name: 'Búho Vigía', desc: 'Dispara estrellas rápidamente a gran distancia.', lvl4: 'Nivel 4: Disparo imparable que atraviesa enemigos.' },
             frog: { emoji: '🐸', type: 'frog', cooldown: 1.5, role: 'slow', dmg: 5, proj: '💧', speed: 350, rangeCells: 3.85,
-                    name: 'Rana Guardiana', desc: 'Sus gotas ralentizan a las sombras.', lvl3: 'Nivel 3: Congela y ralentiza en área.' },
+                    name: 'Rana Guardiana', desc: 'Sus gotas ralentizan a las sombras.', lvl4: 'Nivel 4: Congela por completo en área.' },
             bear: { emoji: '🐻', type: 'bear', cooldown: 5.0, role: 'summoner', dmg: 10, proj: '', speed: 0, rangeCells: 0,
-                    name: 'Oso Protector', desc: 'Invoca guardianes vivos que rastrean y pelean.', lvl3: 'Nivel 3: Invoca Ancestros con espinas.' },
-            squirrel: { emoji: '🐿️', type: 'squirrel', cooldown: 2.0, role: 'splash', dmg: 8, proj: '🌰', speed: 320, rangeCells: 4.5,
-                    name: 'Ardilla Bombardera', desc: 'Lanza bellotas que explotan en área.', lvl3: 'Nivel 3: Explosión gigante que empuja enemigos.' },
+                    name: 'Oso Protector', desc: 'Invoca guardianes que rastrean y pelean cuerpo a cuerpo.', lvl4: 'Nivel 4: Invoca Osos Ancestrales gigantes con espinas.' },
             turtle: { emoji: '🐢', type: 'turtle', cooldown: 3.5, role: 'heavy', dmg: 35, proj: '🌊', speed: 200, rangeCells: 6.0,
-                    name: 'Tortuga Cañón', desc: 'Lenta, pero dispara potentes olas de agua.', lvl3: 'Nivel 3: Olas gigantes que hacen daño de salpicadura.' }
+                    name: 'Tortuga Cañón', desc: 'Lenta, pero dispara potentes olas que hacen mucho daño.', lvl4: 'Nivel 4: Olas colosales con daño de salpicadura.' },
+            squirrel: { emoji: '🐿️', type: 'squirrel', cooldown: 2.0, role: 'splash', dmg: 8, proj: '🌰', speed: 320, rangeCells: 4.5,
+                    name: 'Ardilla Bombardera', desc: 'Lanza bellotas que explotan en un área pequeña.', lvl4: 'Nivel 4: Mega explosión que empuja enemigos hacia atrás.' },
+            // NUEVO PERSONAJE
+            butterfly: { emoji: '🦋', type: 'butterfly', cooldown: 1.2, role: 'chain', dmg: 7, proj: '⚡', speed: 500, rangeCells: 4.5,
+                    name: 'Mariposa Eléctrica', desc: 'Dispara rayos que rebotan entre 2 enemigos cercanos.', lvl4: 'Nivel 4: El rayo rebota a 5 enemigos y los paraliza.' }
         };
 
-        let selectedDeck = []; // Guardará las 4 claves elegidas
+        let selectedDeck = []; 
         let units = [];
         let blockers = [];
         let enemies = [];
         let projectiles = [];
         let audioCtx;
 
-        // Iniciar la UI del creador de mazos
+        function updateDeckPreviewBox(data) {
+            const previewBox = document.getElementById('deck-preview-box');
+            if (data) {
+                previewBox.innerHTML = `
+                    <div style="font-size: 1.1rem; color: #ffd54f; font-weight: bold; margin-bottom: 4px;">${data.emoji} ${data.name}</div>
+                    <div style="font-size: 0.85rem; color: #e0e0e0; margin-bottom: 2px;">${data.desc}</div>
+                    <div style="font-size: 0.8rem; color: #ffeb3b;">${data.lvl4}</div>
+                `;
+            } else {
+                previewBox.innerHTML = `<em style="color: #b2ebf2; font-size: 0.9rem;">Toca un guardián para ver sus habilidades.</em>`;
+            }
+        }
+
         function initDeckBuilder() {
             const container = document.getElementById('deck-grid');
             container.innerHTML = '';
@@ -331,9 +364,12 @@
                 const card = document.createElement('div');
                 card.className = 'deck-card';
                 card.innerText = data.emoji;
-                card.title = `${data.name}\n${data.desc}`;
+                
+                card.onmouseenter = () => updateDeckPreviewBox(data);
+                card.onmouseleave = () => updateDeckPreviewBox(null);
                 
                 card.onclick = () => {
+                    updateDeckPreviewBox(data); 
                     if (card.classList.contains('selected')) {
                         card.classList.remove('selected');
                         selectedDeck = selectedDeck.filter(k => k !== key);
@@ -355,7 +391,6 @@
             document.getElementById('btn-start-game').disabled = selectedDeck.length !== 4;
         }
 
-        // Llamar a la función al cargar la página
         window.onload = initDeckBuilder;
 
         function showStartScreen() {
@@ -375,7 +410,6 @@
                     if (AudioContextClass && !audioCtx) audioCtx = new AudioContextClass();
                 } catch (e) { console.warn("Audio desactivado."); }
 
-                // Limpiar todo por si viene de un reinicio
                 units.forEach(u => u.el.remove()); blockers.forEach(b => b.el.remove());
                 enemies.forEach(e => e.el.remove()); projectiles.forEach(p => p.el.remove());
                 units = []; blockers = []; enemies = []; projectiles = [];
@@ -426,7 +460,7 @@
         }
 
         function drawLanes() {
-            document.querySelectorAll('.lane-divider').forEach(e => e.remove()); // Limpiar previas
+            document.querySelectorAll('.lane-divider').forEach(e => e.remove());
             for(let i=1; i<COLS; i++) {
                 const divider = document.createElement('div');
                 divider.className = 'lane-divider';
@@ -514,7 +548,6 @@
             
             state.energy -= state.summonCost;
             
-            // SACAR UNA UNIDAD ALEATORIA DEL MAZO (DECK)
             const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
             const data = ALL_UNITS[randomKey];
 
@@ -546,7 +579,7 @@
                 const currentData = unit.baseData; 
                 document.getElementById('info-title').innerText = `${currentData.name} (Nivel ${unit.level})`;
                 document.getElementById('info-desc').innerText = currentData.desc;
-                document.getElementById('info-lvl3').innerText = currentData.lvl3;
+                document.getElementById('info-lvl4').innerText = currentData.lvl4;
                 infoPanel.style.opacity = '1';
             };
             const hideInfo = () => { infoPanel.style.opacity = '0'; };
@@ -599,9 +632,9 @@
                 if(newCol >= 0 && newCol < COLS && newRow >= 0 && newRow < ROWS && cellIndex >= (100 - state.unlockedCount)) {
                     const targetUnit = getUnitAt(newCol, newRow);
                     if(targetUnit && targetUnit !== unit) {
-                        if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 3) {
+                        // AHORA EL NIVEL MÁXIMO ES 4
+                        if(targetUnit.baseData.type === unit.baseData.type && targetUnit.level === unit.level && unit.level < 4) {
                             
-                            // FUSIÓN USANDO EL DECK
                             targetUnit.level++;
                             const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
                             const newData = ALL_UNITS[randomKey];
@@ -621,7 +654,6 @@
                             state.unlockedCount = Math.min(100, state.unlockedCount + 1);
                             updateGridVisuals();
                         } else {
-                            // INTERCAMBIO
                             const oldCol = unit.col; const oldRow = unit.row;
                             unit.col = newCol; unit.row = newRow;
                             targetUnit.col = oldCol; targetUnit.row = oldRow;
@@ -721,7 +753,6 @@
             const dt = (currentTime - state.lastFrame) / 1000;
             state.lastFrame = currentTime;
 
-            // 1. Progresión Continua
             state.timeElapsed += dt;
             const newWave = 1 + Math.floor(state.timeElapsed / 15); 
             if (newWave > state.wave) {
@@ -743,7 +774,6 @@
                 }
             }
 
-            // --- LÓGICA MODO AUTOMÁTICO ---
             if (state.autoMode) {
                 state.autoTimer -= dt;
                 if (state.autoTimer <= 0) {
@@ -753,7 +783,8 @@
                     for (let i = 0; i < units.length && !merged; i++) {
                         for (let j = i + 1; j < units.length && !merged; j++) {
                             let u1 = units[i]; let u2 = units[j];
-                            if (u1.baseData.type === u2.baseData.type && u1.level === u2.level && u1.level < 3) {
+                            // AHORA FUSIONA HASTA EL NIVEL 4
+                            if (u1.baseData.type === u2.baseData.type && u1.level === u2.level && u1.level < 4) {
                                 u1.level++;
                                 const randomKey = selectedDeck[Math.floor(Math.random() * selectedDeck.length)];
                                 const newData = ALL_UNITS[randomKey];
@@ -776,7 +807,7 @@
                     }
 
                     if (!merged && units.length > 1) {
-                        const roleScore = { 'summoner': 1, 'slow': 2, 'splash': 2.5, 'dps': 3, 'heavy': 3.5, 'econ': 4 };
+                        const roleScore = { 'summoner': 1, 'slow': 2, 'splash': 2.5, 'chain': 2.8, 'dps': 3, 'heavy': 3.5, 'econ': 4 };
                         let sortedUnits = [...units].sort((a, b) => roleScore[a.baseData.role] - roleScore[b.baseData.role]);
                         
                         let occupiedCells = units.map(u => ({col: u.col, row: u.row}));
@@ -791,27 +822,26 @@
                 }
             }
 
-            // 2. Lógica de Unidades en el Puente
             units.forEach(u => {
                 if (u.isDragging) return;
                 u.timer -= dt;
                 if (u.timer <= 0) {
                     const data = u.baseData;
                     if (data.role === 'econ') {
-                        let amt = u.level === 3 ? 4 : (u.level === 2 ? 2 : 1); 
+                        // Nivel 4 otorga mucha agua
+                        let amt = u.level === 4 ? 8 : (u.level === 3 ? 4 : (u.level === 2 ? 2 : 1)); 
                         state.energy += amt; updateUI();
                         spawnText(u.x, u.y - 20, `+${amt}💧`);
                         u.timer = data.cooldown; 
                     } 
                     else if (data.role === 'summoner') {
-                        u.timer = data.cooldown / (u.level === 3 ? 1.5 : 1);
-                        const hp = u.level === 3 ? 200 : (u.level * 50); 
-                        const dmg = u.level === 3 ? 20 : 8; 
-                        const emoji = u.level === 3 ? '🐻‍❄️' : '🐾';
-                        createBlocker(u.col, u.y - 40, hp, dmg, emoji, u.level === 3);
+                        u.timer = data.cooldown / (u.level >= 3 ? 1.5 : 1);
+                        const hp = u.level === 4 ? 800 : (u.level === 3 ? 350 : (u.level * 50)); 
+                        const dmg = u.level === 4 ? 40 : (u.level === 3 ? 20 : 8); 
+                        const emoji = u.level === 4 ? '🐻‍❄️' : (u.level === 3 ? '🐼' : '🐾');
+                        createBlocker(u.col, u.y - 40, hp, dmg, emoji, u.level >= 3);
                     }
                     else {
-                        // Atacantes: Búho, Rana, Ardilla, Tortuga
                         const rangePx = data.rangeCells * cellW;
                         let target = null;
                         let minDist = rangePx;
@@ -827,7 +857,6 @@
                 }
             });
 
-            // 3. Proyectiles
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const p = projectiles[i];
                 if (!p.isPiercing && p.target && enemies.includes(p.target)) {
@@ -853,30 +882,29 @@
                         }
                     } 
                     else if (p.role === 'heavy') {
-                        // LA TORTUGA
                         hitEnemy.hp -= p.dmg; playChime('hit'); 
                         hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #4caf50)';
                         setTimeout(() => { if(hitEnemy.el) hitEnemy.el.style.filter = hitEnemy.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
                         
-                        if (p.level === 3) {
+                        if (p.level >= 3) {
+                            let splashRange = p.level === 4 ? cellW * 2.5 : cellW * 1.5;
                             enemies.forEach(nearby => {
-                                if(Math.hypot(nearby.x - hitEnemy.x, nearby.y - hitEnemy.y) < cellW * 1.5) {
-                                    nearby.hp -= p.dmg * 0.5; // Splash damage
+                                if(Math.hypot(nearby.x - hitEnemy.x, nearby.y - hitEnemy.y) < splashRange) {
+                                    nearby.hp -= p.dmg * 0.5;
                                 }
                             });
                         }
                         p.el.remove(); projectiles.splice(i, 1); continue;
                     }
                     else if (p.role === 'splash') {
-                        // LA ARDILLA
                         playChime('hit');
-                        let splashRadius = p.level === 3 ? cellW * 2.5 : cellW * 1.5;
+                        let splashRadius = p.level === 4 ? cellW * 3.5 : (p.level === 3 ? cellW * 2.5 : cellW * 1.5);
                         
                         const explosion = document.createElement('div');
                         explosion.innerText = '💥';
                         explosion.style.position = 'absolute';
                         explosion.style.left = `${hitEnemy.x}px`; explosion.style.top = `${hitEnemy.y}px`;
-                        explosion.style.fontSize = p.level === 3 ? '60px' : '40px';
+                        explosion.style.fontSize = p.level === 4 ? '70px' : (p.level === 3 ? '60px' : '40px');
                         explosion.style.transform = 'translate(-50%, -50%)';
                         explosion.style.zIndex = '70';
                         gameArea.appendChild(explosion);
@@ -887,8 +915,10 @@
                                 nearby.hp -= p.dmg;
                                 nearby.el.style.filter = 'drop-shadow(0 0 10px #ff9800)';
                                 setTimeout(() => { if(nearby.el) nearby.el.style.filter = nearby.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
-                                if (p.level === 3 && !nearby.isBoss) {
-                                    nearby.y -= 25; 
+                                if (p.level === 4 && !nearby.isBoss) {
+                                    nearby.y -= 40; // Mega empuje
+                                } else if (p.level === 3 && !nearby.isBoss) {
+                                    nearby.y -= 20; 
                                 }
                             }
                         });
@@ -896,9 +926,60 @@
                     }
                     else if (p.role === 'slow') { 
                         hitEnemy.hp -= p.dmg;
-                        let slowPrc = p.level === 3 ? 0.2 : 0.6; 
-                        hitEnemy.speedMultiplier = slowPrc; hitEnemy.slowTimer = p.level === 3 ? 4.0 : 2.5;
+                        let slowPrc = p.level === 4 ? 0 : (p.level === 3 ? 0.2 : 0.6); // Lvl 4 congela por completo
+                        hitEnemy.speedMultiplier = slowPrc; hitEnemy.slowTimer = p.level >= 3 ? 4.0 : 2.5;
                         hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #81d4fa)';
+                        if (p.level >= 3) { 
+                            enemies.forEach(nearby => {
+                                if(Math.hypot(nearby.x - hitEnemy.x, nearby.y - hitEnemy.y) < cellW * 2) {
+                                    nearby.speedMultiplier = slowPrc; nearby.slowTimer = 4.0;
+                                }
+                            });
+                        }
+                        p.el.remove(); projectiles.splice(i, 1); continue;
+                    }
+                    else if (p.role === 'chain') {
+                        // LA MARIPOSA: Rayo Encadenado
+                        playChime('hit');
+                        hitEnemy.hp -= p.dmg;
+                        hitEnemy.el.style.filter = 'drop-shadow(0 0 10px #ffeb3b)';
+                        setTimeout(() => { if(hitEnemy.el) hitEnemy.el.style.filter = hitEnemy.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
+
+                        let hitSet = new Set([hitEnemy.id]);
+                        let currentTarget = hitEnemy;
+                        let bounces = p.level === 4 ? 5 : (p.level === 3 ? 3 : 1);
+
+                        // Aturdir en nivel 4
+                        if (p.level === 4) { hitEnemy.speedMultiplier = 0.1; hitEnemy.slowTimer = 1.5; }
+
+                        for (let b = 0; b < bounces; b++) {
+                            let nextTarget = null;
+                            let minDist = cellW * 4; 
+                            for (let e of enemies) {
+                                if (!hitSet.has(e.id)) {
+                                    let d = Math.hypot(e.x - currentTarget.x, e.y - currentTarget.y);
+                                    if (d < minDist) { minDist = d; nextTarget = e; }
+                                }
+                            }
+                            if (nextTarget) {
+                                nextTarget.hp -= p.dmg; 
+                                nextTarget.el.style.filter = 'drop-shadow(0 0 10px #ffeb3b)';
+                                setTimeout(() => { if(nextTarget.el) nextTarget.el.style.filter = nextTarget.isBoss ? 'drop-shadow(0 0 15px #ff1744)' : 'drop-shadow(0 2px 4px black)'; }, 100);
+                                
+                                if (p.level === 4) { nextTarget.speedMultiplier = 0.1; nextTarget.slowTimer = 1.5; }
+                                hitSet.add(nextTarget.id);
+
+                                let zap = document.createElement('div');
+                                zap.innerText = '⚡';
+                                zap.style.position = 'absolute';
+                                zap.style.left = `${nextTarget.x}px`; zap.style.top = `${nextTarget.y}px`;
+                                zap.style.zIndex = '70';
+                                gameArea.appendChild(zap);
+                                setTimeout(() => zap.remove(), 150);
+
+                                currentTarget = nextTarget;
+                            } else { break; }
+                        }
                         p.el.remove(); projectiles.splice(i, 1); continue;
                     }
                 } else if (p.x < -50 || p.x > gameArea.clientWidth + 50 || p.y < -50 || p.y > gameArea.clientHeight) {
@@ -906,7 +987,6 @@
                 }
             }
 
-            // 4. Guardianes del Oso (Rastreo arreglado)
             for (let i = blockers.length - 1; i >= 0; i--) {
                 const b = blockers[i];
                 b.hp -= 3 * dt; 
@@ -922,7 +1002,6 @@
                         b.attackTimer = 1.0;
                     }
                 } else if (enemies.length > 0) {
-                    // RASTREO: Buscar enemigo más cercano
                     let closest = null; let minDist = Infinity;
                     for (let e of enemies) {
                         let d = Math.hypot(e.x - b.x, e.y - b.y);
@@ -944,7 +1023,6 @@
                 }
             }
 
-            // 5. Enemigos bajando
             let bossAlive = false;
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const e = enemies[i];
@@ -1000,18 +1078,18 @@
             el.className = 'entity projectile'; el.innerText = unit.baseData.proj;
             el.style.left = `${unit.x}px`; el.style.top = `${unit.y}px`;
             
-            if(unit.baseData.type === 'owl' && unit.level === 3) { el.style.filter = 'drop-shadow(0 0 5px yellow)'; el.style.fontSize = '25px'; }
-            if(unit.baseData.role === 'splash') { el.style.fontSize = unit.level === 3 ? '25px' : '18px'; }
-            if(unit.baseData.role === 'heavy') { el.style.fontSize = unit.level === 3 ? '40px' : '30px'; } // Tortuga
+            if(unit.baseData.type === 'owl' && unit.level >= 3) { el.style.filter = 'drop-shadow(0 0 5px yellow)'; el.style.fontSize = '25px'; }
+            if(unit.baseData.role === 'splash') { el.style.fontSize = unit.level === 4 ? '30px' : (unit.level === 3 ? '25px' : '18px'); }
+            if(unit.baseData.role === 'heavy') { el.style.fontSize = unit.level === 4 ? '50px' : (unit.level === 3 ? '40px' : '30px'); }
 
             gameArea.appendChild(el);
 
             const angle = Math.atan2(target.y - unit.y, target.x - unit.x);
             projectiles.push({
                 el: el, x: unit.x, y: unit.y, role: unit.baseData.role,
-                dmg: unit.baseData.dmg * (unit.level === 3 ? 2.5 : 1), 
+                dmg: unit.baseData.dmg * (unit.level === 4 ? 4.0 : (unit.level === 3 ? 2.5 : 1)), 
                 speed: unit.baseData.speed, level: unit.level, 
-                isPiercing: (unit.baseData.type === 'owl' && unit.level === 3), target: target, angle: angle, hitIds: new Set()
+                isPiercing: (unit.baseData.type === 'owl' && unit.level === 4), target: target, angle: angle, hitIds: new Set()
             });
             
             unit.el.style.transform = 'translate(-50%, -50%) scale(0.9)';
