@@ -17,34 +17,34 @@
 
         /* --- UI Superior --- */
         #top-ui {
-            padding: 15px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(0, 0, 0, 0.6); z-index: 100; border-bottom: 2px solid #333;
+            padding: 15px; display: flex; justify-content: space-between; align-items: flex-start;
+            background: rgba(0, 0, 0, 0.8); z-index: 100; border-bottom: 2px solid #333;
         }
 
         .stats h2 { margin: 0; font-size: 1.2rem; color: #ffeb3b; }
         .stats p { margin: 5px 0 0 0; font-size: 1rem; color: #b2ebf2; }
 
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 50%; }
 
         .btn {
-            padding: 8px 12px; font-size: 0.9rem; border: none; border-radius: 20px;
+            padding: 8px 10px; font-size: 0.85rem; border: none; border-radius: 20px;
             cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            transition: transform 0.1s; text-align: center;
+            transition: transform 0.1s; text-align: center; word-wrap: break-word;
         }
         .btn:active { transform: scale(0.95); }
-        .btn-summon { background: #81c784; color: #000; grid-column: span 2; padding: 12px;}
+        .btn-summon { background: #81c784; color: #000; grid-column: span 2; padding: 12px; font-size: 1rem;}
         .btn-summon:disabled { background: #444; color: #888; }
         .btn-pause { background: #64b5f6; color: #000; }
-        .btn-music { background: #ffb74d; color: #000; }
+        .btn-music { background: #ffb74d; color: #000; grid-column: span 2; }
         .btn-auto { background: #ffb74d; color: #000; }
 
         /* --- Panel de Información (Tooltip) --- */
         #info-panel {
             position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.85); border: 1px solid #ffeb3b; border-radius: 10px;
+            background: rgba(0, 0, 0, 0.9); border: 1px solid #ffeb3b; border-radius: 10px;
             padding: 10px 20px; text-align: center; z-index: 1000; width: 90%; max-width: 400px;
             opacity: 0; pointer-events: none; transition: opacity 0.2s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.8);
         }
         #info-panel h3 { margin: 0 0 5px 0; font-size: 1.1rem; color: #81c784; }
         #info-panel p { margin: 0; font-size: 0.9rem; color: #e0e0e0; line-height: 1.4; }
@@ -55,10 +55,9 @@
             flex-grow: 1; position: relative; width: 100%; max-width: 600px;
             margin: 0 auto; overflow: hidden;
             background: linear-gradient(to bottom, #1f1f3a 0%, #121220 100%);
-            transition: background 1s ease; /* Transición suave para el cielo del Jefe */
+            transition: background 1s ease;
         }
 
-        /* Líneas de Carril (Fondo tenue) */
         .lane-divider {
             position: absolute; top: 0; bottom: 0; width: 1px;
             background: rgba(255,255,255,0.03); pointer-events: none;
@@ -66,7 +65,7 @@
 
         /* --- El Puente 10x10 --- */
         #bridge-container {
-            position: absolute; bottom: 90px; left: 0; width: 100%; height: 55%;
+            position: absolute; bottom: 80px; left: 0; width: 100%; height: 55%;
             pointer-events: none;
         }
 
@@ -90,7 +89,7 @@
 
         /* Estanque (Base a defender) */
         #pond-zone {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 90px;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 80px;
             background: linear-gradient(to bottom, #4fc3f7, #0288d1);
             display: flex; justify-content: center; align-items: center;
             font-size: 1.2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
@@ -98,19 +97,30 @@
         }
 
         /* --- Entidades --- */
-        .entity { position: absolute; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; }
+        .entity { position: absolute; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; flex-direction: column; }
         
         .unit { font-size: clamp(16px, 5vw, 28px); cursor: grab; z-index: 50; border-radius: 50%; transition: left 0.3s, top 0.3s, filter 0.3s; }
         .unit:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.2); z-index: 100; transition: none; }
 
         .level-indicator {
-            position: absolute; bottom: -8px; display: flex; gap: 1px; font-size: 10px;
+            position: absolute; bottom: -12px; display: flex; gap: 1px; font-size: 10px;
             pointer-events: none; text-shadow: 0 0 2px black;
         }
+
+        /* --- Barras de Vida (NUEVO) --- */
+        .hp-bar-container {
+            position: absolute; bottom: -8px; width: 120%; height: 5px;
+            background: rgba(255, 0, 0, 0.4); border-radius: 3px; overflow: hidden;
+            pointer-events: none;
+        }
+        .hp-bar { height: 100%; background: #4caf50; width: 100%; transition: width 0.1s linear; }
+        .blocker .hp-bar-container { background: rgba(0, 0, 0, 0.5); }
+        .blocker .hp-bar { background: #64b5f6; } /* Color azul para aliados */
 
         /* Enemigos y Muros del Oso */
         .enemy { font-size: clamp(16px, 5vw, 26px); z-index: 60; filter: drop-shadow(0 2px 4px black); transition: filter 0.2s, top 0.2s; }
         .enemy.boss { font-size: clamp(40px, 12vw, 60px); filter: drop-shadow(0 0 15px #ff1744); z-index: 65; }
+        .enemy.boss .hp-bar-container { bottom: -15px; height: 8px; }
         
         .blocker { font-size: clamp(14px, 4vw, 24px); z-index: 40; filter: drop-shadow(0 0 8px rgba(129, 199, 132, 0.8)); transition: opacity 0.2s; }
         
@@ -137,7 +147,8 @@
         /* Pantalla Inicio */
         #start-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(18, 18, 32, 0.95); display: flex; flex-direction: column;
+            background: #1a1a2e; /* Fondo sólido oscuro para arreglar superposición */
+            display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 2000; text-align: center; padding: 20px;
         }
     </style>
@@ -169,7 +180,7 @@
             <button id="summon-btn" class="btn btn-summon" onclick="summonUnit()">Invocar (15💧)</button>
             <button id="pause-btn" class="btn btn-pause" onclick="togglePause()">⏸️ Pausa</button>
             <button id="auto-btn" class="btn btn-auto" onclick="toggleAuto()">🤖 Auto: OFF</button>
-            <button id="music-btn" class="btn btn-music" style="grid-column: span 2;" onclick="toggleMusic()">🎵 Música: OFF</button>
+            <button id="music-btn" class="btn btn-music" onclick="toggleMusic()">🎵 Música: OFF</button>
             <button id="restart-btn" class="btn" style="background: #f44336; color: white; display: none; grid-column: span 2;" onclick="restartGame()">Reiniciar Partida</button>
         </div>
     </div>
@@ -184,14 +195,13 @@
     <div id="game-area">
         <div id="range-indicator"></div>
         <div id="bridge-container"><div id="grid"></div></div>
-        <div id="pond-zone">🪷 Estanque Sagrado 🪷</div>
+        <div id="pond-zone">🌸 Estanque Sagrado 🌸</div> <!-- Cambié el emoji a uno universal -->
     </div>
 
     <!-- Reproductor de Audio Oculto -->
     <audio id="bg-music"></audio>
 
     <script>
-        // Declaración global de funciones esenciales
         let fireProjectile;
         let createBlocker;
 
@@ -208,9 +218,10 @@
         const musicBtn = document.getElementById('music-btn');
         const bgMusic = document.getElementById('bg-music');
 
-        // --- SISTEMA DE MÚSICA ALEATORIA ---
+        // --- SISTEMA DE MÚSICA LOCAL CORREGIDO ---
         let isMusicEnabled = false; 
 
+        // ⚠️ IMPORTANTE: Si un archivo no suena, revisa en tu PC que no se llame "Bosque Lofi.mp3.mp3" por accidente.
         const musicPlaylist = [
             'Bosque Lofi (1).mp3', 
             'Bosque Lofi.mp3', 
@@ -225,16 +236,18 @@
         function playRandomMusic() {
             if (musicPlaylist.length === 0 || !isMusicEnabled) return;
             const randomIndex = Math.floor(Math.random() * musicPlaylist.length);
-            const trackFile = encodeURI(musicPlaylist[randomIndex]);
+            
+            // Asignación directa, sin encodeURI, soluciona el error en archivos locales de Windows
+            const trackFile = musicPlaylist[randomIndex]; 
             
             bgMusic.src = trackFile;
             bgMusic.play().then(() => {
-                let trackName = musicPlaylist[randomIndex].replace('.mp3', '').replace(' (1)', '');
+                let trackName = trackFile.replace('.mp3', '').replace(' (1)', '');
                 musicBtn.innerText = `🎵 ${trackName}`;
                 musicBtn.style.background = "#81c784";
             }).catch(e => {
-                console.log("Error al reproducir. Revisa tus archivos locales:", e);
-                musicBtn.innerText = "🎵 Error de Archivo";
+                console.log("No se pudo cargar la canción:", trackFile);
+                musicBtn.innerText = "🎵 Archivo no encontrado";
                 musicBtn.style.background = "#ffb74d";
                 isMusicEnabled = false;
             });
@@ -291,18 +304,12 @@
 
         function startGame() {
             try {
-                // Forzar ocultamiento del cartel de inicio
                 document.getElementById('start-screen').style.display = 'none';
                 
-                // Inicialización Segura del AudioContext (A prueba de fallos)
                 try {
                     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                    if (AudioContextClass && !audioCtx) {
-                        audioCtx = new AudioContextClass();
-                    }
-                } catch (e) {
-                    console.warn("La API de Audio no se pudo iniciar, el juego continuará sin efectos de sonido.", e);
-                }
+                    if (AudioContextClass && !audioCtx) audioCtx = new AudioContextClass();
+                } catch (e) { console.warn("Audio de efectos desactivado por el navegador."); }
 
                 initGrid();
                 drawLanes();
@@ -314,7 +321,7 @@
                 requestAnimationFrame(gameLoop);
             } catch (err) {
                 console.error("Error crítico al iniciar:", err);
-                document.getElementById('start-screen').style.display = 'none'; // Intentar ocultar a toda costa
+                document.getElementById('start-screen').style.display = 'none';
             }
         }
 
@@ -360,7 +367,7 @@
 
         function resizeGrid() {
             const gameRect = gameArea.getBoundingClientRect();
-            gridTop = gameRect.height * 0.45 - 90;
+            gridTop = gameRect.height * 0.45 - 80;
             bridgeContainer.style.height = '55%';
             cellW = gameRect.width / COLS;
             cellH = bridgeContainer.clientHeight / ROWS;
@@ -396,9 +403,7 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
                 osc.connect(gain); gain.connect(audioCtx.destination);
                 osc.start(); osc.stop(audioCtx.currentTime + 1);
-            } catch (e) {
-                // Silenciar errores gráficos si el audio falla intermitentemente
-            }
+            } catch (e) {}
         }
 
         function spawnText(x, y, text, color = "#ffeb3b") {
@@ -540,7 +545,6 @@
                             updateEntityPos(targetUnit);
                         }
                     } else {
-                        // MOVER
                         unit.col = newCol; unit.row = newRow;
                     }
                 }
@@ -594,33 +598,55 @@
             document.getElementById('pond-zone').style.background = 'linear-gradient(to bottom, #4fc3f7, #0288d1)';
         }
 
+        function createHealthBar(entityEl) {
+            const hpContainer = document.createElement('div');
+            hpContainer.className = 'hp-bar-container';
+            const hpBar = document.createElement('div');
+            hpBar.className = 'hp-bar';
+            hpContainer.appendChild(hpBar);
+            entityEl.appendChild(hpContainer);
+            return hpBar;
+        }
+
         function spawnEnemy() {
             const lane = Math.floor(Math.random() * COLS);
             const el = document.createElement('div');
-            el.className = 'entity enemy'; el.innerText = '🌑';
+            el.className = 'entity enemy'; 
             
+            const emojiSpan = document.createElement('span');
+            emojiSpan.innerText = '🌑';
+            el.appendChild(emojiSpan);
+            
+            const hpBar = createHealthBar(el);
+
             const x = lane * cellW + cellW / 2; const y = -20;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
 
             enemies.push({
-                id: Math.random().toString(), el: el, col: lane, x: x, y: y,
+                id: Math.random().toString(), el: el, hpBar: hpBar, col: lane, x: x, y: y,
                 hp: 30 + (state.wave * 10), maxHp: 30 + (state.wave * 10),
                 baseSpeed: 15 + (state.wave * 0.5), speedMultiplier: 1.0, slowTimer: 0, attackTimer: 0, isBoss: false
             });
         }
 
         function spawnBoss() {
-            const lane = Math.floor(COLS / 2); // Centro
+            const lane = Math.floor(COLS / 2); 
             const el = document.createElement('div');
-            el.className = 'entity enemy boss'; el.innerText = '👹';
+            el.className = 'entity enemy boss';
             
+            const emojiSpan = document.createElement('span');
+            emojiSpan.innerText = '👹';
+            el.appendChild(emojiSpan);
+            
+            const hpBar = createHealthBar(el);
+
             const x = lane * cellW + cellW / 2; const y = -40;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
 
             enemies.push({
-                id: Math.random().toString(), el: el, col: lane, x: x, y: y,
+                id: Math.random().toString(), el: el, hpBar: hpBar, col: lane, x: x, y: y,
                 hp: 600 * state.wave, maxHp: 600 * state.wave,
                 baseSpeed: 8 + (state.wave * 0.2), speedMultiplier: 1.0, slowTimer: 0, attackTimer: 0, isBoss: true
             });
@@ -809,10 +835,13 @@
                 }
             }
 
-            // 4. Guardianes del Oso
+            // 4. Guardianes del Oso (Móviles con Vida Visible)
             for (let i = blockers.length - 1; i >= 0; i--) {
                 const b = blockers[i];
-                b.hp -= 2 * dt; 
+                b.hp -= 3 * dt; // Se desgastan poco a poco
+                
+                // Actualizar barra de vida visual
+                if (b.hpBar) b.hpBar.style.width = `${Math.max(0, (b.hp / b.maxHp) * 100)}%`;
                 
                 let engagedEnemy = enemies.find(e => Math.hypot(e.x - b.x, e.y - b.y) < (e.isBoss ? 50 : 35));
 
@@ -832,11 +861,14 @@
                 }
             }
 
-            // 5. Enemigos bajando
+            // 5. Enemigos bajando (Con Vida Visible)
             let bossAlive = false;
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const e = enemies[i];
                 if (e.isBoss) bossAlive = true;
+
+                // Actualizar barra de vida visual
+                if (e.hpBar) e.hpBar.style.width = `${Math.max(0, (e.hp / e.maxHp) * 100)}%`;
 
                 if (e.slowTimer > 0) { 
                     e.slowTimer -= dt; 
@@ -909,11 +941,22 @@
 
         createBlocker = function(col, y, hp, dmg, emoji, isAncestral) {
             const el = document.createElement('div');
-            el.className = 'entity blocker'; el.innerText = emoji;
+            el.className = 'entity blocker'; 
+            
+            const emojiSpan = document.createElement('span');
+            emojiSpan.innerText = emoji;
+            el.appendChild(emojiSpan);
+
+            const hpBar = createHealthBar(el);
+
             const x = col * cellW + cellW / 2;
             el.style.left = `${x}px`; el.style.top = `${y}px`;
             gameArea.appendChild(el);
-            blockers.push({ id: Math.random().toString(), el: el, col: col, x: x, y: y, hp: hp, maxHp: hp, dmg: dmg, isAncestral: isAncestral, speed: 40, attackTimer: 0 });
+            
+            blockers.push({ 
+                id: Math.random().toString(), el: el, hpBar: hpBar, col: col, x: x, y: y, 
+                hp: hp, maxHp: hp, dmg: dmg, isAncestral: isAncestral, speed: 40, attackTimer: 0 
+            });
         };
     </script>
 </body>
