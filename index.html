@@ -479,11 +479,7 @@ body,html{width:100%;height:100%;background:var(--bg-deep);overflow:hidden;displ
 <audio id="bg-music" playsinline preload="auto"></audio>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-// Expose globals
+// All globals exposed for onclick handlers
 window.startGame=startGame; window.showStartScreen=showStartScreen; window.togglePause=togglePause;
 window.toggleAuto=toggleAuto; window.toggleMusic=toggleMusic; window.summonUnit=summonUnit;
 window.restartSameDeck=restartSameDeck; window.cycleSpeed=cycleSpeed;
@@ -491,19 +487,24 @@ window.openLeaderboard=openLeaderboard; window.hideLeaderboard=hideLeaderboard;
 window.filterLeaderboard=filterLeaderboard; window.toggleAdminPanel=toggleAdminPanel;
 window.adminWipeRankings=adminWipeRankings; window.activateFury=activateFury;
 
-// Firebase
+// Firebase - fully optional, game works without it
 let db, auth, currentUser, isFirebaseActive=false, allScoresCache=[];
 const appId = typeof __app_id!=='undefined'?__app_id:'estanque-defensor';
 
 async function initFirebase(){
-  if(typeof __firebase_config==='undefined'){isFirebaseActive=false;return;}
   try{
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+    const { getFirestore, collection, addDoc, getDocs, deleteDoc, doc: firestoreDoc } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+    if(typeof __firebase_config==='undefined') return;
     const app=initializeApp(JSON.parse(__firebase_config));
     auth=getAuth(app); db=getFirestore(app);
+    // Store firestore functions globally for use in save/load
+    window._fs = { collection, addDoc, getDocs, deleteDoc, doc: firestoreDoc };
     if(typeof __initial_auth_token!=='undefined'&&__initial_auth_token) await signInWithCustomToken(auth,__initial_auth_token);
     else await signInAnonymously(auth);
     onAuthStateChanged(auth,u=>{currentUser=u;if(u)isFirebaseActive=true;});
-  }catch(e){isFirebaseActive=false;}
+  }catch(e){ console.log('Firebase not available, using local storage'); isFirebaseActive=false; }
 }
 initFirebase();
 
@@ -594,8 +595,6 @@ const ALL_UNITS = {
     }},
 };
 
-// Rarity weights for summon (higher = more common)
-const RARITY_WEIGHTS = { common:60, rare:25, epic:12, legendary:3 };
 const RARITY_MULT = { common:1, rare:1.4, epic:2, legendary:3.5 };
 
 // Class synergy definitions
@@ -815,7 +814,12 @@ function updateDeckStatus(){
   document.getElementById('btn-start-game').disabled=selectedDeck.length!==4;
 }
 
-window.onload=initDeckBuilder;
+// Ejecutar initDeckBuilder al cargar (módulo no usa window.onload igual)
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', initDeckBuilder);
+} else {
+  initDeckBuilder();
+}
 
 // ─── SCREENS ─────────────────────────────────────────────────────────────────
 function showStartScreen(){
@@ -920,17 +924,9 @@ function updateEntityPos(entity){
 
 function getUnitAt(col,row){ return units.find(u=>u.col===col&&u.row===row); }
 
-// ─── SUMMON ───────────────────────────────────────────────────────────────────
-function getWeightedRarityKey(){
-  // Filter deck by rarity weightings
-  const pool=[];
-  selectedDeck.forEach(key=>{
-    const d=ALL_UNITS[key];
-    const w=RARITY_WEIGHTS[d.rarity];
-    for(let i=0;i<w;i++) pool.push(key);
-  });
-  // Fill with common/rare if pool too small
-  return pool[Math.floor(Math.random()*pool.length)];
+// ─── SUMMON: always picks a random unit from your deck (fixed rarity) ────────
+function getRandomDeckKey(){
+  return selectedDeck[Math.floor(Math.random()*selectedDeck.length)];
 }
 
 function summonUnit(){
@@ -943,7 +939,7 @@ function summonUnit(){
   }
   if(empty.length===0){ spawnText(gameArea.clientWidth/2,100,'¡Sin espacio!','#ef4444'); return; }
   state.energy-=state.summonCost;
-  const key=getWeightedRarityKey();
+  const key=getRandomDeckKey();
   const data=ALL_UNITS[key];
   const cell=empty[Math.floor(Math.random()*empty.length)];
   createUnit(data,1,cell.col,cell.row);
@@ -1018,13 +1014,10 @@ function createUnit(data,level,col,row){
       const tgt=getUnitAt(nc,nr);
       if(tgt&&tgt!==unit){
         if(tgt.baseData.type===unit.baseData.type&&tgt.level===unit.level&&unit.level<4){
-          // MERGE - upgrade rarity too
+          // MERGE: same unit, same rarity, just level up
           tgt.level++;
-          const key=getWeightedRarityKey();
-          const nd=ALL_UNITS[key];
-          tgt.baseData=nd; tgt.emojiSpan.textContent=nd.emoji;
-          tgt.ring.className=`rarity-ring ${nd.rarity}`; tgt.dot.className=`class-dot ${nd.class}`;
-          tgt.el.dataset.level=tgt.level; tgt.lvlInd.textContent='⭐'.repeat(tgt.level);
+          tgt.el.dataset.level=tgt.level;
+          tgt.lvlInd.textContent='⭐'.repeat(tgt.level);
           tgt.el.style.transform='translate(-50%,-50%) scale(1.5)';
           setTimeout(()=>tgt.el&&(tgt.el.style.transform='translate(-50%,-50%) scale(1)'),200);
           spawnText(tgt.x,tgt.y-20,'✨ ¡Fusión!','#81c784');
@@ -1133,10 +1126,8 @@ function gameLoop(currentTime){
       for(let i=0;i<units.length&&!merged;i++) for(let j=i+1;j<units.length&&!merged;j++){
         let u1=units[i], u2=units[j];
         if(u1.baseData.type===u2.baseData.type&&u1.level===u2.level&&u1.level<4){
+          // MERGE: keep same unit & rarity, just level up
           u1.level++;
-          const key=getWeightedRarityKey(); const nd=ALL_UNITS[key];
-          u1.baseData=nd; u1.emojiSpan.textContent=nd.emoji;
-          u1.ring.className=`rarity-ring ${nd.rarity}`; u1.dot.className=`class-dot ${nd.class}`;
           u1.el.dataset.level=u1.level; u1.lvlInd.textContent='⭐'.repeat(u1.level);
           u1.el.style.transform='translate(-50%,-50%) scale(1.5)';
           setTimeout(()=>u1.el&&(u1.el.style.transform=''),200);
@@ -1493,13 +1484,14 @@ async function openLeaderboard(){
   const listEl=document.getElementById('leaderboard-list');
   const warnEl=document.getElementById('ranking-warning');
   listEl.innerHTML='<li style="justify-content:center;color:rgba(255,255,255,0.4);">Cargando... ⏳</li>';
-  if(!isFirebaseActive){
+  if(!isFirebaseActive||!window._fs){
     warnEl.style.display='block';
     allScoresCache=JSON.parse(localStorage.getItem('estanque_ranking')||'[]');
     filterLeaderboard('all'); return;
   }
   warnEl.style.display='none';
   try{
+    const {collection,getDocs}=window._fs;
     const ref=collection(db,'artifacts',appId,'public','data','leaderboard');
     const snap=await getDocs(ref);
     allScoresCache=[];
@@ -1535,10 +1527,12 @@ function toggleAdminPanel(){ const p=document.getElementById('admin-panel'); p.s
 async function adminWipeRankings(){
   const pwd=document.getElementById('admin-pwd').value;
   if(pwd!=='secreto123'){ document.getElementById('admin-pwd').value=''; document.getElementById('admin-pwd').placeholder='¡Incorrecta!'; return; }
-  if(!isFirebaseActive){ localStorage.removeItem('estanque_ranking'); allScoresCache=[]; }
+  if(!isFirebaseActive||!window._fs){ localStorage.removeItem('estanque_ranking'); allScoresCache=[]; }
   else{
-    try{ for(let s of allScoresCache) if(s.id) await deleteDoc(doc(db,'artifacts',appId,'public','data','leaderboard',s.id)); }
-    catch(e){ return; }
+    try{
+      const {deleteDoc,doc}=window._fs;
+      for(let s of allScoresCache) if(s.id) await deleteDoc(doc(db,'artifacts',appId,'public','data','leaderboard',s.id));
+    }catch(e){ return; }
   }
   document.getElementById('admin-pwd').value=''; toggleAdminPanel(); openLeaderboard();
 }
@@ -1546,8 +1540,8 @@ async function adminWipeRankings(){
 async function saveScore(){
   const name=(document.getElementById('player-name').value.trim()||'Anónimo');
   const data={name, wave:state.wave, date:new Date().toISOString()};
-  if(!isFirebaseActive){ let ls=JSON.parse(localStorage.getItem('estanque_ranking')||'[]'); ls.push(data); localStorage.setItem('estanque_ranking',JSON.stringify(ls)); return; }
-  try{ await addDoc(collection(db,'artifacts',appId,'public','data','leaderboard'),data); }catch(e){}
+  if(!isFirebaseActive||!window._fs){ let ls=JSON.parse(localStorage.getItem('estanque_ranking')||'[]'); ls.push(data); localStorage.setItem('estanque_ranking',JSON.stringify(ls)); return; }
+  try{ const {collection,addDoc}=window._fs; await addDoc(collection(db,'artifacts',appId,'public','data','leaderboard'),data); }catch(e){}
 }
 </script>
 </body>
