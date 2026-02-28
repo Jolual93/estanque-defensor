@@ -94,8 +94,7 @@ body,html{width:100%;height:100%;background:var(--bg-deep);overflow:hidden;displ
 .unit[data-level="4"]{animation:pulseMax 1.5s infinite alternate;}
 @keyframes pulseMax{0%{filter:drop-shadow(0 0 8px rgba(255,215,0,0.6))}100%{filter:drop-shadow(0 0 18px rgba(255,255,255,0.9))}}
 #range-indicator{position:absolute;border-radius:50%;background:rgba(255,255,255,0.03);border:1.5px dashed rgba(255,255,255,0.2);transform:translate(-50%,-50%);pointer-events:none;display:none;z-index:45;}
-.floating-text{position:absolute;font-weight:bold;font-size:0.9rem;pointer-events:none;transform:translate(-50%,-50%);z-index:200;animation:floatUp 1s ease-out forwards;text-shadow:0 2px 4px black;font-family:'Cinzel',serif;}
-@keyframes floatUp{0%{opacity:1;margin-top:0}100%{opacity:0;margin-top:-35px}}
+.floating-text{position:absolute;font-weight:bold;font-size:0.9rem;pointer-events:none;transform:translate(-50%,-50%);z-index:200;text-shadow:0 2px 4px black;font-family:'Cinzel',serif;transition:none;}
 #info-panel{position:absolute;top:65px;left:50%;transform:translateX(-50%);background:rgba(4,4,10,0.95);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:8px 14px;text-align:center;z-index:1000;width:75%;max-width:300px;opacity:0;pointer-events:none;transition:opacity 0.2s;box-shadow:0 4px 20px rgba(0,0,0,0.8);}
 #info-panel h3{margin:0 0 3px;font-size:0.85rem;color:var(--gold-light);font-family:'Cinzel',serif;}
 #info-panel p{margin:0;font-size:0.75rem;color:rgba(255,255,255,0.7);line-height:1.4;}
@@ -489,7 +488,12 @@ var ALL_UNITS = {
     name:'Lobo Centinela',     desc:'Patrulla su fila e intercepta enemigos cuerpo a cuerpo.',
     lvl4:'Nivel 4: Velocidad +50% y daño duplicado.',
     ability:'Cada 3er golpe: aullido que ralentiza enemigos cercanos 2s.',
-    counter:['eye','basic','specter'], counteredBy:['golem','skeleton'] }
+    counter:['eye','basic','specter'], counteredBy:['golem','skeleton'] },
+  fox:       { emoji:'🦊', type:'fox',       cooldown:6.0, role:'illusion', rangeCells:5.0, dmg:15, speed:0,   proj:'',  rarity:'epic',      cls:'mage',    locked:false,
+    name:'Zorro Ilusionista',  desc:'Crea copias falsas que distraen a los enemigos.',
+    lvl4:'Nivel 4: Hasta 3 copias simultáneas que explotan al morir.',
+    ability:'Copias duran 4s o hasta destruirse. Al morir explotan en área.',
+    counter:['eye','skeleton','squid'], counteredBy:['golem','pufferfish'] }
 };
 
 var ENEMY_DEFS = {
@@ -499,13 +503,17 @@ var ENEMY_DEFS = {
   swarm:    { emoji:'🦇', name:'Enjambre',         desc:'Llega en grupos de 3. Débil pero abrumador.',               stage:2, hp:0.4, speed:1.8, size:'normal', ghost:0, counteredBy:['squirrel','phoenix','butterfly'],         counters:['owl','dragon','turtle'] },
   skeleton: { emoji:'💀', name:'Esqueleto Guerrero',desc:'Resistente y golpea fuerte a tus guardianes bloqueadores.', stage:3, hp:2,   speed:0.9, size:'normal', ghost:0, counteredBy:['phoenix','dragon','turtle'],              counters:['bear','wolf'] },
   spider:   { emoji:'🕷️', name:'Araña Tejedora',   desc:'Sus telarañas ralentizan tus proyectiles un 50%.',          stage:3, hp:1.2, speed:1.1, size:'normal', ghost:0, counteredBy:['frog','butterfly','squirrel'],            counters:['owl','dragon','eagle'] },
-  specter:  { emoji:'👻', name:'Espectro',          desc:'Semitransparente — ignora el 30% del daño recibido.',       stage:3, hp:1.5, speed:1.4, size:'normal', ghost:0.3, counteredBy:['eagle','phoenix','frog'],              counters:['bear','turtle','wolf'] }
+  specter:   { emoji:'👻', name:'Espectro',          desc:'Semitransparente — ignora el 30% del daño recibido.',       stage:3, hp:1.5, speed:1.4, size:'normal', ghost:0.3, counteredBy:['eagle','phoenix','frog'],              counters:['bear','turtle','wolf'] },
+  squid:     { emoji:'🦑', name:'Calamar Sombra',     desc:'Lanza tinta: los proyectiles cercanos van 50% más lentos 3s.',stage:4, hp:1.3, speed:1.0, size:'normal', ghost:0,   counteredBy:['frog','eagle','butterfly'],             counters:['owl','dragon','fox'] },
+  kraken:    { emoji:'🐙', name:'Pulpo Kraken',        desc:'Tiene 3 tentáculos con HP propio. Destruye los tentáculos primero.',stage:4, hp:3, speed:0.6, size:'heavy', ghost:0, counteredBy:['turtle','squirrel','dragon'],           counters:['wolf','bear','fox'] },
+  pufferfish:{ emoji:'🐡', name:'Pez Globo',           desc:'Al morir explota causando daño masivo al estanque.',         stage:4, hp:0.8, speed:1.5, size:'normal', ghost:0,  counteredBy:['butterfly','owl','eagle'],              counters:['squirrel','phoenix','fox'] }
 };
 
 var STAGES = [
   { id:1, name:'El Bosque Corrupto',   desc:'Las sombras emergen del bosque oscuro.',        bg:'linear-gradient(180deg,#0d1a0d 0%,#080f08 100%)', enemies:['basic'],                      boss:'👹', finalBoss:'👿', unlocked:true,  stars:0 },
   { id:2, name:'Las Ruinas Antiguas',  desc:'Criaturas ancestrales defienden las ruinas.',    bg:'linear-gradient(180deg,#1a0d0d 0%,#0f0808 100%)', enemies:['basic','eye','golem','swarm'], boss:'💀', finalBoss:'☠️', unlocked:false, stars:0 },
-  { id:3, name:'Las Catacumbas Eternas',desc:'Las profundidades ocultan horrores ancestrales.',bg:'linear-gradient(180deg,#0d0d1a 0%,#050508 100%)', enemies:['basic','skeleton','spider','specter'], boss:'🦴', finalBoss:'☠️', unlocked:false, stars:0 }
+  { id:3, name:'Las Catacumbas Eternas',desc:'Las profundidades ocultan horrores ancestrales.',bg:'linear-gradient(180deg,#0d0d1a 0%,#050508 100%)', enemies:['basic','skeleton','spider','specter'], boss:'🦴', finalBoss:'☠️', unlocked:false, stars:0 },
+  { id:4, name:'Las Profundidades Abisales',desc:'Las criaturas del abismo emergen de las oscuras aguas.',bg:'linear-gradient(180deg,#020d1a 0%,#010508 100%)', enemies:['basic','squid','kraken','pufferfish'], boss:'🌊', finalBoss:'🦈', unlocked:false, stars:0 }
 ];
 var currentStageIdx = 0;
 var currentStageId = 1;
@@ -516,7 +524,7 @@ var playerData = (function() {
   // Initialize card inventory: each card starts at cardLevel:1, copies:0
   var inv = {};
   Object.keys(ALL_UNITS).forEach(function(k){ inv[k] = {cardLevel:1, copies:0}; });
-  return { gold:0, chestsOpened:{}, stage1Stars:0, stage2Stars:0, stage3Stars:0, inventory:inv };
+  return { gold:0, chestsOpened:{}, stage1Stars:0, stage2Stars:0, stage3Stars:0, stage4Stars:0, inventory:inv };
 })();
 
 // Ensure inventory has all units (for saves that predate new units)
@@ -650,12 +658,14 @@ function updateUI(){
   else fill.style.background='linear-gradient(90deg,#ef4444,#f87171)';
   document.getElementById('summon-btn').disabled=state.energy<state.summonCost;
 }
+// Floating texts managed manually - NO CSS animations, NO setTimeout (fixes frozen fire)
+var floatingTexts = [];
 function spawnText(x,y,text,color){
   var el=document.createElement('div');
   el.className='floating-text';el.textContent=text;
-  el.style.left=x+'px';el.style.top=y+'px';el.style.color=color||'#f0d078';
+  el.style.cssText='position:absolute;left:'+x+'px;top:'+y+'px;color:'+(color||'#f0d078')+';font-weight:bold;font-size:0.9rem;pointer-events:none;transform:translate(-50%,-50%);z-index:200;text-shadow:0 2px 4px black;font-family:Cinzel,serif;opacity:1;will-change:transform,opacity;';
   gameArea.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.remove();},1000);
+  floatingTexts.push({el:el,x:x,y:y,life:1.0});
 }
 
 var speedList=[1,2,0.5],speedLabels=['1×','2×','½×'],speedIdx=0;
@@ -714,8 +724,10 @@ function showWorldScreen(){
   STAGES[0].stars=playerData.stage1Stars||0;
   STAGES[1].stars=playerData.stage2Stars||0;
   STAGES[2].stars=playerData.stage3Stars||0;
+  STAGES[3].stars=playerData.stage4Stars||0;
   STAGES[1].unlocked=STAGES[0].stars>0;
   STAGES[2].unlocked=STAGES[1].stars>0;
+  STAGES[3].unlocked=STAGES[2].stars>0;
   document.getElementById('world-gold').textContent=playerData.gold;
   renderStageCard();
 }
@@ -750,7 +762,7 @@ function renderStageCard(){
 }
 
 // ── BESTIARY ──────────────────────────────────────────────────────
-var unitNames={owl:'Búho',frog:'Rana',bear:'Oso',turtle:'Tortuga',squirrel:'Ardilla',butterfly:'Mariposa',phoenix:'Fénix',dragon:'Dragón',eagle:'Águila',tree:'Árbol',wolf:'Lobo'};
+var unitNames={owl:'Búho',frog:'Rana',bear:'Oso',turtle:'Tortuga',squirrel:'Ardilla',butterfly:'Mariposa',phoenix:'Fénix',dragon:'Dragón',eagle:'Águila',tree:'Árbol',wolf:'Lobo',fox:'Zorro'};
 function openBestiary(){
   var panel=document.getElementById('bestiary-panel');panel.style.display='flex';
   document.getElementById('inventory-panel').style.display='none';
@@ -967,6 +979,9 @@ function startGame(){
   blockers.forEach(function(x){if(x.el)x.el.remove();}); blockers.length=0;
   enemies.forEach(function(x){if(x.el)x.el.remove();}); enemies.length=0;
   projectiles.forEach(function(x){if(x.el)x.el.remove();}); projectiles.length=0;
+  floatingTexts.forEach(function(x){if(x.el&&x.el.parentNode)x.el.parentNode.removeChild(x.el);}); floatingTexts.length=0;
+  // Clean up any leftover decoy elements
+  document.querySelectorAll('.fox-decoy').forEach(function(e){e.remove();});
   state.energy=60;state.pondHp=100;state.summonCost=15;state.unlockedCount=COLS*ROWS;
   state.scoreSaved=false;state.isRunning=true;state.isPaused=false;
   state.autoMode=false;state.autoTimer=0;state.timeElapsed=0;state.wave=1;
@@ -1137,6 +1152,13 @@ function getEnemyPool(){
     if(state.wave>=4)pool3.push('specter');
     return pool3;
   }
+  if(state.stageId===4){
+    var pool4=['squid'];
+    if(state.wave>=2)pool4.push('pufferfish');
+    if(state.wave>=3)pool4.push('pufferfish'); // more common
+    if(state.wave>=4)pool4.push('kraken');
+    return pool4;
+  }
   return['basic'];
 }
 function spawnEnemy(){
@@ -1281,6 +1303,20 @@ function gameLoop(currentTime){
   if(dt>0.15)dt=0.016*gameSpeed;
   state.lastFrame=currentTime;state.timeElapsed+=dt/gameSpeed;
 
+  // Tick floating texts (JS-controlled, no CSS animations - fixes frozen fire on PC)
+  for(var fti=floatingTexts.length-1;fti>=0;fti--){
+    var ft=floatingTexts[fti];
+    ft.life-=dt/gameSpeed;
+    ft.y-=35*(dt/gameSpeed);
+    if(ft.life<=0){
+      if(ft.el.parentNode)ft.el.parentNode.removeChild(ft.el);
+      floatingTexts.splice(fti,1);
+    } else {
+      ft.el.style.top=ft.y+'px';
+      ft.el.style.opacity=String(Math.max(0,ft.life));
+    }
+  }
+
   // Wave progression
   var newWave=Math.min(state.maxWave,1+Math.floor(state.timeElapsed/15));
   if(newWave>state.wave){state.wave=newWave;updateUI();spawnText(gameArea.clientWidth/2,100,'Oleada '+state.wave,'#ce93d8');}
@@ -1395,8 +1431,36 @@ function gameLoop(currentTime){
       // Legendary: double HP
       if(udata.rarity==='legendary')bhp*=2;
       createBlocker(u.col,u.y-40,bhp,bdmg,bemoji,u.level>=3,u);
+    } else if(udata.role==='illusion'){
+      // FOX: create decoy that attracts enemies
+      var foxRp=getSynRange(u)*cellW;var foxNearE=null;
+      for(var fxi=0;fxi<enemies.length;fxi++){if(Math.hypot(enemies[fxi].x-u.x,enemies[fxi].y-u.y)<foxRp*2){foxNearE=enemies[fxi];break;}}
+      if(!foxNearE){u.timer=1.0;continue;}
+      u.timer=udata.cooldown/(1+(u.level-1)*0.2);
+      var maxDecoys=u.level>=4?3:1;
+      if(!u._decoys)u._decoys=[];
+      // Remove dead decoys
+      u._decoys=u._decoys.filter(function(d){return d.alive;});
+      if(u._decoys.length>=maxDecoys)continue;
+      // Spawn decoy element
+      var br2=bridgeContainer.getBoundingClientRect(),gr2=gameArea.getBoundingClientRect();
+      var dCol=Math.floor(Math.random()*COLS);
+      var dRow=Math.floor(Math.random()*ROWS);
+      var dPos=getPosFromColRow(dCol,dRow);
+      var dEl=document.createElement('div');
+      dEl.style.cssText='position:absolute;left:'+dPos.x+'px;top:'+dPos.y+'px;font-size:'+(cellW*0.5)+'px;transform:translate(-50%,-50%);z-index:45;opacity:0.6;filter:drop-shadow(0 0 8px #c084fc);pointer-events:none;transition:opacity 0.3s;';
+      dEl.textContent='🦊';
+      gameArea.appendChild(dEl);
+      var decoy={el:dEl,x:dPos.x,y:dPos.y,hp:30*(u.level)*RARITY_MULT[udata.rarity],maxHp:30*(u.level)*RARITY_MULT[udata.rarity],life:4.0,alive:true,owner:u};
+      u._decoys.push(decoy);
+      // Enemies in range get attracted to decoy
+      for(var dei=0;dei<enemies.length;dei++){
+        if(Math.hypot(enemies[dei].x-u.x,enemies[dei].y-u.y)<foxRp*2&&!enemies[dei].isBoss){
+          enemies[dei]._decoyTarget=decoy;
+        }
+      }
+      spawnText(u.x,u.y-20,'🦊 Ilusión!','#c084fc');
     } else {
-      var atkRp=getSynRange(u)*cellW;var atkTgt=null,atkMin=atkRp;
       for(var ati=0;ati<enemies.length;ati++){var atd=Math.hypot(enemies[ati].x-u.x,enemies[ati].y-u.y);if(atd<atkMin){atkMin=atd;atkTgt=enemies[ati];}}
       if(udata.role==='mark'){
         var mTgt=null;
@@ -1404,6 +1468,58 @@ function gameLoop(currentTime){
         if(mTgt)atkTgt=mTgt;
       }
       if(atkTgt){doFireProjectile(u,atkTgt);u.timer=udata.cooldown/(1+(u.level-1)*0.2);}
+    }
+  }
+
+  // DECOYS (Fox illusions)
+  for(var ui2=0;ui2<units.length;ui2++){
+    var uf=units[ui2];
+    if(uf.baseData.type!=='fox'||!uf._decoys)continue;
+    for(var di2=uf._decoys.length-1;di2>=0;di2--){
+      var dc=uf._decoys[di2];
+      dc.life-=dt/gameSpeed;
+      // Enemies attack decoy
+      for(var dei2=0;dei2<enemies.length;dei2++){
+        var de=enemies[dei2];
+        if(de._decoyTarget===dc&&!de.isBoss){
+          // Move toward decoy instead of pond
+          var dAng=Math.atan2(dc.y-de.y,dc.x-de.x);
+          var dDist=Math.hypot(dc.x-de.x,dc.y-de.y);
+          if(dDist>20){
+            de.x+=Math.cos(dAng)*de.baseSpeed*de.speedMultiplier*dt;
+            de.y+=Math.sin(dAng)*de.baseSpeed*de.speedMultiplier*dt;
+            if(de.el){de.el.style.left=de.x+'px';de.el.style.top=de.y+'px';}
+          } else {
+            // Attack decoy
+            dc.hp-=de.baseSpeed*5*dt;
+            de.el.style.filter='drop-shadow(0 0 4px #c084fc)';
+          }
+        }
+      }
+      if(dc.life<=0||dc.hp<=0){
+        // Decoy dies — explode if level 4
+        if(uf.level>=4||dc.hp<=0){
+          var dExpR=cellW*2;
+          var dDmg=uf.baseData.dmg*2*RARITY_MULT[uf.baseData.rarity];
+          for(var dxi=0;dxi<enemies.length;dxi++){
+            if(Math.hypot(enemies[dxi].x-dc.x,enemies[dxi].y-dc.y)<dExpR){
+              enemies[dxi].hp-=dDmg;
+              if(enemies[dxi]._decoyTarget===dc)enemies[dxi]._decoyTarget=null;
+            }
+          }
+          var popEl=document.createElement('div');
+          popEl.style.cssText='position:absolute;left:'+dc.x+'px;top:'+dc.y+'px;font-size:36px;transform:translate(-50%,-50%);z-index:90;pointer-events:none;opacity:1;transition:opacity 0.4s;';
+          popEl.textContent='💨';
+          gameArea.appendChild(popEl);
+          setTimeout(function(){popEl.style.opacity='0';setTimeout(function(){if(popEl.parentNode)popEl.parentNode.removeChild(popEl);},400);},100);
+          spawnText(dc.x,dc.y-15,'💥 Ilusión','#c084fc');
+        }
+        dc.alive=false;
+        if(dc.el){dc.el.style.opacity='0';setTimeout((function(e){return function(){if(e.parentNode)e.parentNode.removeChild(e);};})(dc.el),300);}
+        uf._decoys.splice(di2,1);
+        // Clear decoy target from enemies
+        for(var dei3=0;dei3<enemies.length;dei3++){if(enemies[dei3]._decoyTarget===dc)enemies[dei3]._decoyTarget=null;}
+      }
     }
   }
 
@@ -1519,7 +1635,32 @@ function gameLoop(currentTime){
     var e=enemies[emi];
     if(e.marked){e.markTimer-=dt;if(e.markTimer<=0){e.marked=false;if(e.el)e.el.style.filter='';}}
     if(e.webTimer>0)e.webTimer-=dt;
-    if(e.hpBar)e.hpBar.style.width=Math.max(0,(e.hp/e.maxHp)*100)+'%';
+    // Squid: periodically spray ink that slows nearby projectiles
+    if(e.enemyType==='squid'){
+      if(!e._inkTimer)e._inkTimer=0;
+      e._inkTimer-=dt;
+      if(e._inkTimer<=0){
+        e._inkTimer=4.0;
+        // Mark nearby projectiles as slowed
+        for(var inki=0;inki<projectiles.length;inki++){
+          if(Math.hypot(projectiles[inki].x-e.x,projectiles[inki].y-e.y)<cellW*3){
+            projectiles[inki].speed=projectiles[inki].speed*0.5;
+            projectiles[inki]._inked=true;
+          }
+        }
+        spawnText(e.x,e.y-10,'🦑 Tinta!','#818cf8');
+      }
+    }
+    // Kraken: split into tentacles concept — show HP as segments
+    if(e.enemyType==='kraken'&&!e._tentaclesShown){
+      e._tentaclesShown=true;
+      e._tentacleHp=e.maxHp*0.4; // destroys first tentacle phase at 60% hp
+    }
+    if(e.enemyType==='kraken'&&e._tentacleHp&&e.hp<e._tentacleHp){
+      e._tentacleHp=0;
+      spawnText(e.x,e.y-15,'Tentáculo roto!','#818cf8');
+      e.baseSpeed*=1.3; // gets angrier
+    }
     if(e.slowTimer>0){e.slowTimer-=dt;if(e.slowTimer<=0){e.speedMultiplier=1;if(e.el)e.el.style.filter=e.isBoss?'drop-shadow(0 0 15px #ff1744)':'';}}
     if(e.burnTimer>0){e.burnTimer-=dt;e.hp-=8*dt;if(e.el&&!e.slowTimer)e.el.style.filter='drop-shadow(0 0 6px #f97316)';}
     var blocking=null;
@@ -1550,6 +1691,20 @@ function gameLoop(currentTime){
       state.energy+=drops;updateUI();
       spawnText(e.x,e.y,'+'+drops+'💧',e.isFinalBoss?'#f97316':e.isBoss?'#ef4444':'#f0d078');
       addFury(e.isBoss?10:1);
+      // Pufferfish: explodes on death dealing pond damage
+      if(e.enemyType==='pufferfish'){
+        var pfDmg=15+state.wave*2;
+        state.pondHp=Math.max(0,state.pondHp-pfDmg);updateUI();
+        var pfExp=document.createElement('div');
+        pfExp.style.cssText='position:absolute;left:'+e.x+'px;top:'+e.y+'px;font-size:52px;transform:translate(-50%,-50%);z-index:90;pointer-events:none;opacity:1;transition:opacity 0.5s;';
+        pfExp.textContent='💥';
+        gameArea.appendChild(pfExp);
+        setTimeout(function(){pfExp.style.opacity='0';setTimeout(function(){if(pfExp.parentNode)pfExp.parentNode.removeChild(pfExp);},500);},100);
+        spawnText(e.x,e.y-20,'💥 BOOM -'+pfDmg+'%','#f87171');
+        document.getElementById('pond-bar').style.background='rgba(239,68,68,0.5)';
+        setTimeout(function(){document.getElementById('pond-bar').style.background='';},400);
+      }
+      // Phoenix burn explosion
       if(e.burnTimer>0){
         var blastR=cellW*2;
         for(var bxi=0;bxi<enemies.length;bxi++){if(enemies[bxi]!==e&&Math.hypot(enemies[bxi].x-e.x,enemies[bxi].y-e.y)<blastR){enemies[bxi].hp-=25;enemies[bxi].burnTimer=(enemies[bxi].burnTimer||0)+2;}}
@@ -1601,6 +1756,7 @@ function showEndScreen(isVictory){
       playerData[key]=stars;
       if(state.stageId===1&&stars>0)STAGES[1].unlocked=true;
       if(state.stageId===2&&stars>0)STAGES[2].unlocked=true;
+      if(state.stageId===3&&stars>0)STAGES[3].unlocked=true;
     }
     savePlayerData();
   }
