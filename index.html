@@ -1299,6 +1299,13 @@ function gameLoop(currentTime){
   if(!state.isRunning){requestAnimationFrame(gameLoop);return;}
   if(state.isPaused){state.lastFrame=currentTime;requestAnimationFrame(gameLoop);return;}
   if(state.pondHp<=0){requestAnimationFrame(gameLoop);return;}
+  try{ gameLoopBody(currentTime); }catch(err){
+    console.error('GameLoop error:',err);
+    state.lastFrame=currentTime;
+  }
+  requestAnimationFrame(gameLoop);
+}
+function gameLoopBody(currentTime){
   var dt=((currentTime-state.lastFrame)/1000)*gameSpeed;
   if(dt>0.15)dt=0.016*gameSpeed;
   state.lastFrame=currentTime;state.timeElapsed+=dt/gameSpeed;
@@ -1461,6 +1468,7 @@ function gameLoop(currentTime){
       }
       spawnText(u.x,u.y-20,'🦊 Ilusión!','#c084fc');
     } else {
+      var atkRp=getSynRange(u)*cellW;var atkTgt=null,atkMin=atkRp;
       for(var ati=0;ati<enemies.length;ati++){var atd=Math.hypot(enemies[ati].x-u.x,enemies[ati].y-u.y);if(atd<atkMin){atkMin=atd;atkTgt=enemies[ati];}}
       if(udata.role==='mark'){
         var mTgt=null;
@@ -1742,9 +1750,7 @@ function gameLoop(currentTime){
 
   if(!enemies.some(function(e){return e.isBoss;}))
     gameArea.style.background='linear-gradient(180deg,#0d0d1f 0%,#080812 100%)';
-
-  requestAnimationFrame(gameLoop);
-}
+} // end gameLoopBody
 
 // ── PAUSE / AUTO ──────────────────────────────────────────────────
 function togglePause(){
