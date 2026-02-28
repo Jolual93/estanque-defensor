@@ -1298,9 +1298,13 @@ function doFireProjectile(unit,target){
 function gameLoop(currentTime){
   if(!state.isRunning){requestAnimationFrame(gameLoop);return;}
   if(state.isPaused){state.lastFrame=currentTime;requestAnimationFrame(gameLoop);return;}
-  if(state.pondHp<=0){requestAnimationFrame(gameLoop);return;}
+  // If pond died, show end screen once and stop processing
+  if(state.pondHp<=0){
+    if(!state.scoreSaved){state.scoreSaved=true;showEndScreen(false);}
+    return; // stop loop entirely - showEndScreen will handle restart
+  }
   try{ gameLoopBody(currentTime); }catch(err){
-    console.error('GameLoop error:',err);
+    console.error('GameLoop error:',err,err.stack);
     state.lastFrame=currentTime;
   }
   requestAnimationFrame(gameLoop);
@@ -1694,7 +1698,7 @@ function gameLoopBody(currentTime){
         var dmg=e.isFinalBoss?60:e.isBoss?40:(e.enemyType==='golem'||e.enemyType==='skeleton'?25:10);
         state.pondHp=Math.max(0,state.pondHp-dmg);updateUI();
         addFury(e.isBoss?15:3);
-        if(state.pondHp<=0&&!state.scoreSaved){state.scoreSaved=true;showEndScreen(false);}
+        // Don't call showEndScreen here - outer gameLoop detects pondHp<=0 next frame
         if(e.el&&e.el.parentNode)e.el.parentNode.removeChild(e.el);
         enemies.splice(emi,1);
         document.getElementById('pond-bar').style.background='rgba(239,68,68,0.4)';
@@ -1709,9 +1713,6 @@ function gameLoopBody(currentTime){
       addFury(3);e._decoyTarget=null;
       if(e.el&&e.el.parentNode)e.el.parentNode.removeChild(e.el);
       enemies.splice(emi,1);
-      document.getElementById('pond-bar').style.background='rgba(239,68,68,0.4)';
-      setTimeout(function(){document.getElementById('pond-bar').style.background='';},300);
-      continue;
     }
     if(e.hp<=0){
       var drops=e.isFinalBoss?80:e.isBoss?50:5;
@@ -1722,14 +1723,10 @@ function gameLoopBody(currentTime){
       if(e.enemyType==='pufferfish'){
         var pfDmg=15+state.wave*2;
         state.pondHp=Math.max(0,state.pondHp-pfDmg);updateUI();
-        var pfExp=document.createElement('div');
-        pfExp.style.cssText='position:absolute;left:'+e.x+'px;top:'+e.y+'px;font-size:52px;transform:translate(-50%,-50%);z-index:90;pointer-events:none;opacity:1;transition:opacity 0.5s;';
-        pfExp.textContent='💥';
-        gameArea.appendChild(pfExp);
-        setTimeout(function(){pfExp.style.opacity='0';setTimeout(function(){if(pfExp.parentNode)pfExp.parentNode.removeChild(pfExp);},500);},100);
         spawnText(e.x,e.y-20,'💥 BOOM -'+pfDmg+'%','#f87171');
         document.getElementById('pond-bar').style.background='rgba(239,68,68,0.5)';
         setTimeout(function(){document.getElementById('pond-bar').style.background='';},400);
+        // pondHp<=0 will be caught by outer gameLoop next frame
       }
       // Phoenix burn explosion
       if(e.burnTimer>0){
@@ -1742,9 +1739,11 @@ function gameLoopBody(currentTime){
         if(spreadTarget){spreadTarget.marked=true;spreadTarget.markTimer=3;if(spreadTarget.el)spreadTarget.el.style.filter='drop-shadow(0 0 8px red)';}
       }
       if(e.el){e.el.style.transform='scale(0)';e.el.style.opacity='0';}
-      setTimeout((function(ref){return function(){if(ref&&ref.parentNode)ref.parentNode.removeChild(ref);};})(e.el),200);
+      var _deadEl=e.el;
+      setTimeout(function(){if(_deadEl&&_deadEl.parentNode)_deadEl.parentNode.removeChild(_deadEl);},200);
       enemies.splice(emi,1);
       if(e.isFinalBoss&&!state.victoryPending){state.victoryPending=true;setTimeout(function(){showEndScreen(true);},2000);}
+      continue;
     }
   }
 
@@ -1765,6 +1764,8 @@ function toggleAuto(){state.autoMode=!state.autoMode;document.getElementById('au
 
 // ── END SCREEN & CHESTS ───────────────────────────────────────────
 function showEndScreen(isVictory){
+  state.isRunning=false; // Stop the game loop
+  bgMusic.pause();
   var el=document.getElementById('end-screen');
   document.getElementById('end-title').textContent=isVictory?'¡Victoria!':'Derrota';
   document.getElementById('end-title').className=isVictory?'victory':'defeat';
@@ -1797,7 +1798,7 @@ function showEndScreen(isVictory){
     }
   }
   el.style.display='flex';
-  if(!state.scoreSaved){state.scoreSaved=true;saveScore();}
+  saveScore();
 }
 
 function openChest(key,chestEl){
