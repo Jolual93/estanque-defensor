@@ -1182,7 +1182,7 @@ function spawnSingleEnemy(et,def,lane,br,gr){
   gameArea.appendChild(el);
   var hp=Math.floor((30+state.wave*15)*def.hp*(0.8+Math.random()*0.4));
   var speed=(20+state.wave*1.5)*def.speed;
-  enemies.push({id:Math.random().toString(),el:el,hpBar:hpBar,col:lane,x:x,y:y,hp:hp,maxHp:hp,baseSpeed:speed,speedMultiplier:1,slowTimer:0,attackTimer:0,isBoss:false,isFinalBoss:false,burnTimer:0,staticCharge:false,enemyType:et,marked:false,markTimer:0,ghostFactor:def.ghost||0,webTimer:0});
+  enemies.push({id:Math.random().toString(),el:el,hpBar:hpBar,col:lane,x:x,y:y,hp:hp,maxHp:hp,baseSpeed:speed,speedMultiplier:1,slowTimer:0,attackTimer:0,isBoss:false,isFinalBoss:false,burnTimer:0,staticCharge:false,enemyType:et,marked:false,markTimer:0,ghostFactor:def.ghost||0,webTimer:0,_decoyTarget:null,_inkTimer:0});
 }
 function spawnBoss(isFinalBoss){
   var sg=STAGES.find(function(s){return s.id===state.stageId;});
@@ -1196,7 +1196,7 @@ function spawnBoss(isFinalBoss){
   el.style.left=x+'px';el.style.top=y+'px';
   gameArea.appendChild(el);
   var hp=Math.floor(600*state.wave*(isFinalBoss?2.5:1));
-  enemies.push({id:Math.random().toString(),el:el,hpBar:hpBar,col:lane,x:x,y:y,hp:hp,maxHp:hp,baseSpeed:8+state.wave*0.2,speedMultiplier:1,slowTimer:0,attackTimer:0,isBoss:true,isFinalBoss:isFinalBoss,burnTimer:0,staticCharge:false,enemyType:'boss',marked:false,markTimer:0,ghostFactor:0,webTimer:0});
+  enemies.push({id:Math.random().toString(),el:el,hpBar:hpBar,col:lane,x:x,y:y,hp:hp,maxHp:hp,baseSpeed:8+state.wave*0.2,speedMultiplier:1,slowTimer:0,attackTimer:0,isBoss:true,isFinalBoss:isFinalBoss,burnTimer:0,staticCharge:false,enemyType:'boss',marked:false,markTimer:0,ghostFactor:0,webTimer:0,_decoyTarget:null,_inkTimer:0});
   gameArea.style.background='linear-gradient(180deg,'+(isFinalBoss?'#2a0a0a':'#1f1010')+' 0%,#08080f 100%)';
   spawnText(gameArea.clientWidth/2,150,isFinalBoss?'⚠ JEFE FINAL ⚠':'👹 JEFE de Oleada','#ef4444');
   addFury(20);playChime('hit');
@@ -1482,17 +1482,20 @@ function gameLoop(currentTime){
       for(var dei2=0;dei2<enemies.length;dei2++){
         var de=enemies[dei2];
         if(de._decoyTarget===dc&&!de.isBoss){
-          // Move toward decoy instead of pond
           var dAng=Math.atan2(dc.y-de.y,dc.x-de.x);
           var dDist=Math.hypot(dc.x-de.x,dc.y-de.y);
-          if(dDist>20){
-            de.x+=Math.cos(dAng)*de.baseSpeed*de.speedMultiplier*dt;
-            de.y+=Math.sin(dAng)*de.baseSpeed*de.speedMultiplier*dt;
-            if(de.el){de.el.style.left=de.x+'px';de.el.style.top=de.y+'px';}
+          // Only divert if decoy is close enough — prevents permanent trapping
+          if(dDist<cellW*5&&dc.alive&&dc.life>0){
+            if(dDist>20){
+              de.x+=Math.cos(dAng)*de.baseSpeed*de.speedMultiplier*dt;
+              de.y+=Math.sin(dAng)*de.baseSpeed*de.speedMultiplier*dt;
+              if(de.el){de.el.style.left=de.x+'px';de.el.style.top=de.y+'px';}
+            } else {
+              dc.hp-=de.baseSpeed*3*dt;
+              if(de.el)de.el.style.filter='drop-shadow(0 0 4px #c084fc)';
+            }
           } else {
-            // Attack decoy
-            dc.hp-=de.baseSpeed*5*dt;
-            de.el.style.filter='drop-shadow(0 0 4px #c084fc)';
+            de._decoyTarget=null; // Too far — resume normal movement
           }
         }
       }
@@ -1528,7 +1531,10 @@ function gameLoop(currentTime){
     var p=projectiles[pi];
     if(!p.isPiercing&&p.target&&enemies.indexOf(p.target)>=0)
       p.angle=Math.atan2(p.target.y-p.y,p.target.x-p.x);
-    p.x+=Math.cos(p.angle)*p.speed*dt;p.y+=Math.sin(p.angle)*p.speed*dt;
+    // Ink timer tick
+    if(p._inkTimer>0)p._inkTimer-=dt/gameSpeed;
+    var effectiveSpeed=p.speed*(p._inkTimer>0?0.4:1);
+    p.x+=Math.cos(p.angle)*effectiveSpeed*dt;p.y+=Math.sin(p.angle)*effectiveSpeed*dt;
     p.el.style.left=p.x+'px';p.el.style.top=p.y+'px';
     var hit=null;
     for(var hi=0;hi<enemies.length;hi++){if(Math.hypot(enemies[hi].x-p.x,enemies[hi].y-p.y)<(enemies[hi].isBoss?50:25)){hit=enemies[hi];break;}}
@@ -1635,31 +1641,32 @@ function gameLoop(currentTime){
     var e=enemies[emi];
     if(e.marked){e.markTimer-=dt;if(e.markTimer<=0){e.marked=false;if(e.el)e.el.style.filter='';}}
     if(e.webTimer>0)e.webTimer-=dt;
-    // Squid: periodically spray ink that slows nearby projectiles
+    // Squid: periodically spray ink that slows nearby projectiles temporarily
     if(e.enemyType==='squid'){
-      if(!e._inkTimer)e._inkTimer=0;
+      if(!e._inkTimer)e._inkTimer=3.0;
       e._inkTimer-=dt;
       if(e._inkTimer<=0){
-        e._inkTimer=4.0;
-        // Mark nearby projectiles as slowed
+        e._inkTimer=5.0;
         for(var inki=0;inki<projectiles.length;inki++){
           if(Math.hypot(projectiles[inki].x-e.x,projectiles[inki].y-e.y)<cellW*3){
-            projectiles[inki].speed=projectiles[inki].speed*0.5;
-            projectiles[inki]._inked=true;
+            // Mark with ink timer — speed is calculated dynamically
+            projectiles[inki]._inkTimer=3.0;
           }
         }
         spawnText(e.x,e.y-10,'🦑 Tinta!','#818cf8');
       }
     }
-    // Kraken: split into tentacles concept — show HP as segments
+    // Kraken: enrage at 60% hp — cap baseSpeed to avoid runaway
     if(e.enemyType==='kraken'&&!e._tentaclesShown){
       e._tentaclesShown=true;
-      e._tentacleHp=e.maxHp*0.4; // destroys first tentacle phase at 60% hp
+      e._tentacleHp=e.maxHp*0.6;
+      e._baseSpeedOrig=e.baseSpeed;
     }
     if(e.enemyType==='kraken'&&e._tentacleHp&&e.hp<e._tentacleHp){
       e._tentacleHp=0;
-      spawnText(e.x,e.y-15,'Tentáculo roto!','#818cf8');
-      e.baseSpeed*=1.3; // gets angrier
+      spawnText(e.x,e.y-15,'¡Furia!','#818cf8');
+      // Cap at 1.5x original, never compound
+      e.baseSpeed=Math.min((e._baseSpeedOrig||e.baseSpeed)*1.5, 60);
     }
     if(e.slowTimer>0){e.slowTimer-=dt;if(e.slowTimer<=0){e.speedMultiplier=1;if(e.el)e.el.style.filter=e.isBoss?'drop-shadow(0 0 15px #ff1744)':'';}}
     if(e.burnTimer>0){e.burnTimer-=dt;e.hp-=8*dt;if(e.el&&!e.slowTimer)e.el.style.filter='drop-shadow(0 0 6px #f97316)';}
@@ -1672,7 +1679,8 @@ function gameLoop(currentTime){
         if(blocking.isAncestral){e.hp-=10;spawnText(e.x,e.y,'¡Espinas!','#ffb74d');}
         e.attackTimer=e.isBoss?1.5:1.0;
       }
-    } else {
+    } else if(!e._decoyTarget) {
+      // Normal advance toward pond
       e.y+=e.baseSpeed*e.speedMultiplier*dt;if(e.el)e.el.style.top=e.y+'px';
       if(e.y>gameArea.clientHeight-80){
         var dmg=e.isFinalBoss?60:e.isBoss?40:(e.enemyType==='golem'||e.enemyType==='skeleton'?25:10);
@@ -1685,6 +1693,17 @@ function gameLoop(currentTime){
         setTimeout(function(){document.getElementById('pond-bar').style.background='';},300);
         continue;
       }
+    }
+    // Always check pond boundary even for decoy-diverted enemies
+    if(e._decoyTarget&&e.y>gameArea.clientHeight-80){
+      var dmgD=e.isFinalBoss?60:e.isBoss?40:10;
+      state.pondHp=Math.max(0,state.pondHp-dmgD);updateUI();
+      addFury(3);e._decoyTarget=null;
+      if(e.el&&e.el.parentNode)e.el.parentNode.removeChild(e.el);
+      enemies.splice(emi,1);
+      document.getElementById('pond-bar').style.background='rgba(239,68,68,0.4)';
+      setTimeout(function(){document.getElementById('pond-bar').style.background='';},300);
+      continue;
     }
     if(e.hp<=0){
       var drops=e.isFinalBoss?80:e.isBoss?50:5;
